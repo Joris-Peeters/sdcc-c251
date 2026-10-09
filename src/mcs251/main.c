@@ -1060,7 +1060,8 @@ get_model (void)
 */
 static const char *_linkCmd[] =
 {
-  "sdld", "-r", "-nf", "$1", "$L", NULL
+  /* -n first: sdld echoes every option until it sees -n. */
+  "sdld", "-n", "-r", "-f", "$1", "$L", NULL
 };
 
 /* $3 is replaced by assembler.debug_opts resp. port->assembler.plain_opts */
