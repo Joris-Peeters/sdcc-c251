@@ -9375,15 +9375,13 @@ genFarPointerGet (operand * left, operand * result, iCode * ic, iCode * pi, iCod
   aopOp (left, ic, FALSE);
   loadDptrFromOperand (left, FALSE);
 
-  /* Preserve the source pointer before selecting an XDATA spill
-     destination: MCS251 has only one DPX. */
-  emitcode ("mov", "dr28,dpx");
-
   /* so dptr now contains the address */
   aopOp (result, ic, FALSE);
   mcs251FarResult = AOP_TYPE (result) == AOP_DPTR;
   if (mcs251FarResult)
     {
+      /* The other operand needs DPX too: keep the pointer in DR28. */
+      emitcode ("mov", "dr28,dpx");
       mcs251LoadFarSymbol (AOP (result), 0);
       emitcode ("mov", "dr24,dpx");
       emitcode ("mov", "dpx,dr28");
@@ -9458,13 +9456,13 @@ genCodePointerGet (operand * left, operand * result, iCode * ic, iCode * pi, iCo
   aopOp (left, ic, FALSE);
   loadDptrFromOperand (left, FALSE);
 
-  emitcode ("mov", "dr28,dpx");
-
   /* so dptr now contains the address */
   aopOp (result, ic, FALSE);
   mcs251FarResult = AOP_TYPE (result) == AOP_DPTR;
   if (mcs251FarResult)
     {
+      /* The other operand needs DPX too: keep the pointer in DR28. */
+      emitcode ("mov", "dr28,dpx");
       mcs251LoadFarSymbol (AOP (result), 0);
       emitcode ("mov", "dr24,dpx");
       emitcode ("mov", "dpx,dr28");
@@ -9539,13 +9537,13 @@ genGenPointerGet (operand * left, operand * result, iCode * ic, iCode * pi, iCod
   aopOp (left, ic, FALSE);
   loadDptrFromOperand (left, TRUE);
 
-  emitcode ("mov", "dr28,dpx");
-
   /* so dptr-b now contains the address */
   aopOp (result, ic, FALSE);
   mcs251FarResult = AOP_TYPE (result) == AOP_DPTR;
   if (mcs251FarResult)
     {
+      /* The other operand needs DPX too: keep the pointer in DR28. */
+      emitcode ("mov", "dr28,dpx");
       mcs251LoadFarSymbol (AOP (result), 0);
       emitcode ("mov", "dr24,dpx");
       emitcode ("mov", "dpx,dr28");
@@ -10195,13 +10193,13 @@ genFarPointerSet (operand * right, operand * result, iCode * ic, iCode * pi)
   aopOp (result, ic, FALSE);
   loadDptrFromOperand (result, FALSE);
 
-  emitcode ("mov", "dr28,dpx");
-
   /* so dptr now contains the address */
   aopOp (right, ic, FALSE);
   mcs251FarSource = AOP_TYPE (right) == AOP_DPTR;
   if (mcs251FarSource)
     {
+      /* The other operand needs DPX too: keep the pointer in DR28. */
+      emitcode ("mov", "dr28,dpx");
       mcs251LoadFarSymbol (AOP (right), 0);
       emitcode ("mov", "dr24,dpx");
       emitcode ("mov", "dpx,dr28");
@@ -10263,13 +10261,13 @@ genGenPointerSet (operand * right, operand * result, iCode * ic, iCode * pi)
   aopOp (result, ic, FALSE);
   loadDptrFromOperand (result, TRUE);
 
-  emitcode ("mov", "dr28,dpx");
-
   /* so dptr-b now contains the address */
   aopOp (right, ic, FALSE);
   mcs251FarSource = AOP_TYPE (right) == AOP_DPTR;
   if (mcs251FarSource)
     {
+      /* The other operand needs DPX too: keep the pointer in DR28. */
+      emitcode ("mov", "dr28,dpx");
       mcs251LoadFarSymbol (AOP (right), 0);
       emitcode ("mov", "dr24,dpx");
       emitcode ("mov", "dpx,dr28");
