@@ -2520,8 +2520,8 @@ loadDptrFromOperand (operand *op, bool loadBToo)
                   else
                     {
                       if (cached_parsed && new_parsed)
-                        fprintf (stderr, "DPTR no-match: cached=(%s,0x%lx) new=(%s,0x%lx)\n",
-                                 cached_base, cached_off, new_base, new_off);
+                        D (emitcode (";", "DPTR cache miss: cached=(%s,0x%lx) new=(%s,0x%lx)",
+                                     cached_base, cached_off, new_base, new_off));
                       /* MOV DPTR,#data16 leaves DPXL alone, and the cache
                          is still valid here, so DPXL holds dpxlSymbol. */
                       bool sameRegion = !strcmp (dpxl_buf, _G.dptrCache.dpxlSymbol);
