@@ -116,6 +116,11 @@ check: all
 			$(srcdir)/tests/compatible-c23-struct.c \
 		--incompatible-c23-struct-source \
 			$(srcdir)/tests/incompatible-c23-struct.c
+	$(SHELL) $(srcdir)/tests/check-quiet-build.sh \
+		$(top_builddir)/bin/sdcc \
+		$(top_srcdir)/device/include \
+		$(top_builddir)/device/lib/build/mcs251-large \
+		$(srcdir)/tests/quiet-build.c
 	$(SHELL) $(srcdir)/tests/check-driver.sh \
 		$(top_builddir)/bin/sdcc \
 		$(srcdir)/tests/compiler-smoke.c \
