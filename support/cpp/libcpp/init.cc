@@ -431,7 +431,10 @@ static const struct builtin_macro builtin_array[] =
   B("__has_attribute",	 BT_HAS_ATTRIBUTE, true),
   B("__has_c_attribute", BT_HAS_STD_ATTRIBUTE, true),
   B("__has_cpp_attribute", BT_HAS_ATTRIBUTE, true),
-  B("__has_builtin",	 BT_HAS_BUILTIN,   true),
+  /* SDCC: the sdcc driver defines its own __has_builtin(x) for the
+     builtins of the selected frontend mode (SDCCmain.c), so redefining
+     it is expected and must not warn.  */
+  B("__has_builtin",	 BT_HAS_BUILTIN,   false),
   B("__has_include",	 BT_HAS_INCLUDE,   true),
   B("__has_include_next",BT_HAS_INCLUDE_NEXT,   true),
   /* Keep builtins not used for -traditional-cpp at the end, and

@@ -2761,8 +2761,10 @@ preProcess (char **envp)
       /* Character encoding  - these need to be set in device/lib/Makefile.in for $CPP, too */
       addSet (&preArgvSet, Safe_strdup ("-D__STDC_ISO_10646__=201409L")); // wchar_t is UTF-32
 
-      /* Target data model. Never inherit these values from the host cpp. */
-      addSet (&preArgvSet, Safe_strdup ("-D__STDC_HOSTED__=0"));
+      /* Target data model. Never inherit these values from the host cpp.
+         -ffreestanding defines __STDC_HOSTED__ as 0; a -D on top of
+         sdcpp's predefined value would warn on every compile. */
+      addSet (&preArgvSet, Safe_strdup ("-ffreestanding"));
       addPreprocessorUIntDefine ("__CHAR_BIT__", port->s.char_size * 8);
       addPreprocessorUIntDefine ("__SIZEOF_CHAR__", port->s.char_size);
       addPreprocessorUIntDefine ("__SIZEOF_SHORT__", port->s.short_size);

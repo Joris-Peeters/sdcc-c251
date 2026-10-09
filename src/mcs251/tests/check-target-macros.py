@@ -207,7 +207,8 @@ def read_macros(sdcc, device_include, source, port, mode, options=()):
             f"{port} --std={mode_name} could not dump macros:\n"
             f"{result.stdout}{result.stderr}"
         )
-    if "-Wbuiltin-macro-redefined" in result.stderr:
+    if "-Wbuiltin-macro-redefined" in result.stderr or \
+            "redefined" in result.stderr:
         raise RuntimeError(
             f"{port} --std={mode_name} exposed host-macro reset warnings:\n"
             f"{result.stderr}"
