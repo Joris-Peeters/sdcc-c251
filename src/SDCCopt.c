@@ -3613,6 +3613,12 @@ narrowRead (iCode *ic, operand **opp, eBBlock *ebp)
   if (IS_BOOL (resulttype) || getSize (resulttype) >= getSize (righttype))
     return 0;
 
+  // A big-endian narrow read needs a non-zero GET_VALUE_AT_ADDRESS offset
+  // (below), which the MCS51-family code generators ignore.  MCS251 is
+  // big-endian: (unsigned char)table[i] read the high byte.
+  if (!port->little_endian && TARGET_MCS51_LIKE)
+    return 0;
+
   // Narrow read
   if (!port->little_endian)
     {

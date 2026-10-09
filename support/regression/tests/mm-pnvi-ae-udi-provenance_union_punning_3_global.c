@@ -40,6 +40,8 @@ testMM(void)
   int *q = (int*)i;
   *q = 11;  // does this have UB?
   ASSERT (x == *p);
+#if !defined(__SDCC_mcs251) // uintptr_t is 4 bytes, pointers 3, big-endian: the punned value is not the pointer.
   ASSERT (x == *q);
+#endif
 }
 
