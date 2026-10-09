@@ -141,6 +141,53 @@ mcs251_high_register_loop (void)
   return value0 ^ value1 ^ value2 ^ value3 ^
          value4 ^ value5 ^ value6 ^ value7;
 }
+
+/* MOV @Ri,src / MOV dst,@Ri take only A or a direct address; R8-R15 have
+   neither form.  The store keeps a 16-bit value in R14/R15 across the
+   loop, the load fills R12-R15 from an idata long. */
+__idata unsigned char mcs251_indirect_lo[2][10];
+__idata unsigned char mcs251_indirect_hi[2][10];
+volatile __idata long mcs251_indirect_values[5];
+
+unsigned int
+mcs251_indirect_glyph (char c)
+{
+  return c * 0x0123u;
+}
+
+void
+mcs251_indirect_high_store (unsigned char row, const char *text)
+{
+  unsigned char i;
+  unsigned int g;
+
+  for (i = 0; i < 10; i++)
+    {
+      g = 0;
+      if (*text)
+        g = mcs251_indirect_glyph (*text++);
+      mcs251_indirect_lo[row][i] = (unsigned char)g;
+      mcs251_indirect_hi[row][i] = (unsigned char)(g >> 8);
+    }
+}
+
+unsigned char
+mcs251_indirect_relation (long a, long b)
+{
+  return (a < b) | (a <= b) << 1 | (a > b) << 2 | (a >= b) << 3;
+}
+
+unsigned char
+mcs251_indirect_high_load (void)
+{
+  unsigned char i, j, sum = 0;
+
+  for (i = 0; i < 5; i++)
+    for (j = 0; j < 5; j++)
+      sum += mcs251_indirect_relation (mcs251_indirect_values[i],
+                                       mcs251_indirect_values[j]);
+  return sum;
+}
 #endif
 
 #if defined (MCS_REGISTER_PRESSURE_RUNTIME)

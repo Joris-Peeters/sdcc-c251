@@ -8861,7 +8861,8 @@ emitPtrByteSet (const char *rname, int p_type, const char *src)
     {
     case IPOINTER:
     case POINTER:
-      if (*src == '@')
+      /* MOV @Ri takes A (R11) or a direct address; R8-R15 have none. */
+      if (*src == '@' || isFixedByteRegisterOperand (src))
         {
           MOVA (src);
           emitcode ("mov", "@%s,a", rname);
@@ -9973,7 +9974,8 @@ genNearPointerSet (operand * right, operand * result, iCode * ic, iCode * pi)
             operandType (right), physicalOffset,
             AOP_SIZE (right));
           const char *l = opGet (right, logicalOffset, FALSE, TRUE);
-          if ((*l == '@') || (EQ (l, "acc")))
+          /* MOV @Ri takes A (R11) or a direct address; R8-R15 have none. */
+          if ((*l == '@') || (EQ (l, "acc")) || isFixedByteRegisterOperand (l))
             {
               MOVA (l);
               emitcode ("mov", "@%s,a", rname);

@@ -2041,7 +2041,7 @@ aopPutUsesAcc (const asmop* aop, const char *s, int offset)
       return TRUE;
     case AOP_R0:
     case AOP_R1:
-      return ((aop->paged) || (*s == '@'));
+      return ((aop->paged) || (*s == '@') || isFixedByteRegisterOperand (s));
     case AOP_STK:
       return (*s == '@');
     case AOP_CRY:
@@ -2133,7 +2133,16 @@ aopPut (asmop *aop, const char *s, int offset)
     case AOP_REG:
       if (!EQ (aop->aopu.aop_reg[offset]->name, s) && !EQ (aop->aopu.aop_reg[offset]->dname, s))
         {
-          if (*s == '@' ||
+          if (*s == '@' && isFixedByteRegisterOperand (aop->aopu.aop_reg[offset]->name))
+            {
+              /* MOV Rm,@Ri exists only for A; R8-R15 have no direct
+                 address either.  Callers expect A to survive. */
+              emitpush ("acc");
+              emitcode ("mov", "a,%s", s);
+              emitcode ("mov", "%s,a", aop->aopu.aop_reg[offset]->name);
+              emitpop ("acc");
+            }
+          else if (*s == '@' ||
               EQ (s, "r0") || EQ (s, "r1") || EQ (s, "r2") || EQ (s, "r3") ||
               EQ (s, "r4") || EQ (s, "r5") || EQ (s, "r6") || EQ (s, "r7"))
             {
@@ -2202,9 +2211,12 @@ aopPut (asmop *aop, const char *s, int offset)
     case AOP_R1:
       /* Get source in A before inc/dec of r0/r1 */
       /* in case source needed different offset  */
-      if (aop->paged || *s == '@')
+      /* MOV @Ri,Rm exists only for A (R11); R8-R15 have no direct
+         address alias, so pass them through A like an @ source. */
+      if (aop->paged || *s == '@' || isFixedByteRegisterOperand (s))
         {
           MOVA (s);
+          accuse = true;
         }
 
       mcs251_setAopR01Offset (aop, offset);
@@ -2214,7 +2226,7 @@ aopPut (asmop *aop, const char *s, int offset)
           /* source already in A */
           emitcode ("movx", "@%s,a", aop->aopu.aop_ptr->name);
         }
-      else if (*s == '@')
+      else if (*s == '@' || isFixedByteRegisterOperand (s))
         {
           /* source already in A */
           emitcode ("mov", "@%s,a", aop->aopu.aop_ptr->name);
@@ -2918,7 +2930,8 @@ cheapMove (asmop *to, int to_offset, asmop *from, int from_offset, bool a_dead)
     {
       emitcode ("mov", "%s, %s", to->aopu.aop_reg[to_offset]->dname, aopGet (from, from_offset, false, !aopGetUsesAcc (from, from_offset)));
     }
-  else if ((to->type == AOP_R0 || to->type == AOP_R1) && !to->paged && aopDir (from, from_offset)) // Can't be part of the case below, since aopPut wants to pass the value through acc, which is less efficient.
+  else if ((to->type == AOP_R0 || to->type == AOP_R1) && !to->paged && aopDir (from, from_offset) &&
+    !(from->type == AOP_REG && isFixedByteRegisterOperand (from->aopu.aop_reg[from_offset]->name))) // Can't be part of the case below, since aopPut wants to pass the value through acc, which is less efficient. R8-R15 can't be the source of mov @Ri.
     {
       mcs251_setAopR01Offset (to, to_offset);
       emitcode ("mov", "@%s, %s", to->aopu.aop_ptr->name, aopGet (from, from_offset, false, true));

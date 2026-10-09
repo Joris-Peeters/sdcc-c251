@@ -40,6 +40,13 @@ INVALID_HIGH_BANK_ALIAS = re.compile(
     r"\bar(?:8|9|1[0-5])\b",
     re.IGNORECASE,
 )
+# MOV @Ri,src and MOV dst,@Ri encode only A (R11) or a direct address as the
+# other operand; R8, R9 and R12-R15 have no direct address.
+INVALID_HIGH_INDIRECT = re.compile(
+    r"^[ \t]*mov[ \t]+(?:@r[01],[ \t]*r(?:8|9|1[2-5])|"
+    r"r(?:8|9|1[2-5]),[ \t]*@r[01])\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 # In MCS-251 Source mode these accumulator-memory forms only encode R0-R7 as
 # the high operand (or none at all): ADD/ADDC/SUBB A,Rn, ANL/ORL/XRL A,Rn,
 # CJNE A,Rn, and the CJNE Rn,#imm forms.  Any emitted occurrence with an
@@ -312,6 +319,13 @@ def main():
                 raise AssertionError(
                     f"{name} emitted DJNZ with R8-R15: "
                     f"{invalid_djnz.group(0).strip()}"
+                )
+
+            invalid_indirect = INVALID_HIGH_INDIRECT.search(assembly[name])
+            if invalid_indirect:
+                raise AssertionError(
+                    f"{name} emitted an @Ri move with R8-R15: "
+                    f"{invalid_indirect.group(0).strip()}"
                 )
 
             invalid_acc = INVALID_HIGH_FIXED_ACC_OP.search(assembly[name])
