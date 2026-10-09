@@ -46,6 +46,7 @@ def main():
         "--incompatible-shadowed-struct-source", required=True
     )
     parser.add_argument("--invalid-wide-bitfield-source", required=True)
+    parser.add_argument("--far-pointer-conversion-source", required=True)
     args = parser.parse_args()
 
     sdcc = Path(args.sdcc).resolve()
@@ -57,6 +58,7 @@ def main():
         Path(args.incompatible_shadowed_struct_source).resolve()
     invalid_wide_bitfield_source = \
         Path(args.invalid_wide_bitfield_source).resolve()
+    far_pointer_source = Path(args.far_pointer_conversion_source).resolve()
     for path in (
         sdcc,
         incompatible_source,
@@ -64,6 +66,7 @@ def main():
         compatible_block_source,
         incompatible_shadowed_source,
         invalid_wide_bitfield_source,
+        far_pointer_source,
     ):
         if not path.exists():
             parser.error(f"required path does not exist: {path}")
@@ -85,6 +88,10 @@ def main():
             )
             compile_source(
                 sdcc, invalid_wide_bitfield_source, port, False, workspace
+            )
+            # __far == generic only on MCS251.
+            compile_source(
+                sdcc, far_pointer_source, port, port == "mcs251", workspace
             )
 
 

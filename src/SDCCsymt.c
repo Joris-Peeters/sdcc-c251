@@ -3268,7 +3268,12 @@ compareType (sym_link *dest, sym_link *src, bool ignoreimplicitintrinsic)
           if ((IS_FARPTR (dest) ^ IS_FARPTR (src)) && (port->far_in_generic || port->generic_in_far))
             mustCast = true;
           
-          if (IS_PTR (src) && (IS_GENPTR (dest) || ((DCL_TYPE (src) == POINTER) && (DCL_TYPE (dest) == IPOINTER))))
+          /* When __far and generic pointers are the same space (MCS-251:
+             both flat 24-bit), a __far destination accepts every pointer a
+             generic one does. */
+          if (IS_PTR (src) && (IS_GENPTR (dest) ||
+                               (IS_FARPTR (dest) && port->far_in_generic && port->generic_in_far) ||
+                               ((DCL_TYPE (src) == POINTER) && (DCL_TYPE (dest) == IPOINTER))))
             {
               return comparePtrType (dest, src, true, ignoreimplicitintrinsic);
             }

@@ -64,6 +64,14 @@ Pointer arithmetic propagates carries through all 24 bits, including across a
 window; SFRs remain accessible through `__sfr` declarations and direct
 addressing.
 
+Because `__far` and generic pointers share this representation, a `__far`
+pointer accepts every pointer a generic one does without a cast: `__code`,
+`__data`, `__idata`, `__xdata` and generic pointers (Keil C251's `far`
+behaves the same).  A 1-byte `__data`/`__idata` pointer is zero-extended
+into region `00:`.  This is a type-checking rule only; the representation
+and calling convention are unchanged.  MCS51, where `__far` is a separate
+space, still rejects these conversions.
+
 Converting a `__pdata` pointer to a flat pointer snapshots its byte offset,
 `P2`, and the STC `MXAX` region byte to form the numeric address
 `MXAX:P2:offset`.  Its 3-byte object representation remains high byte first.
