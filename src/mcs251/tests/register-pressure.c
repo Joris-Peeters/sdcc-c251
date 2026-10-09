@@ -188,6 +188,21 @@ mcs251_indirect_high_load (void)
                                        mcs251_indirect_values[j]);
   return sum;
 }
+
+/* MUL WR12,WR8 writes all of DR12: an ISR that multiplies must preserve
+   R14 and R15 too, not only the WR12 named in the instruction. */
+volatile unsigned char mcs251_multiply_isr_ticks;
+volatile unsigned long mcs251_multiply_isr_sum;
+volatile unsigned int mcs251_multiply_isr_prod;
+
+void
+mcs251_word_multiply_isr (void) __interrupt (2)
+{
+  unsigned char t = mcs251_multiply_isr_ticks;
+  mcs251_multiply_isr_sum += (unsigned long) t * t * 1000u;
+  mcs251_multiply_isr_prod = (mcs251_multiply_isr_prod << 1) + mcs251_multiply_isr_prod + t;
+  mcs251_multiply_isr_ticks = t + 1;
+}
 #endif
 
 #if defined (MCS_REGISTER_PRESSURE_RUNTIME)

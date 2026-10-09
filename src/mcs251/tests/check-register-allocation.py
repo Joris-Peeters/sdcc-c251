@@ -259,6 +259,24 @@ def main():
                 f"{word_multiply}"
             )
 
+        multiply_isr = function_body(
+            assembly["mcs251"], "mcs251_word_multiply_isr"
+        )
+        if re.search(r"^[ \t]*mul[ \t]+wr12,", multiply_isr,
+                     re.IGNORECASE | re.MULTILINE):
+            # MUL WR12,WRj writes all of DR12, so an ISR must save R12-R15.
+            prologue = multiply_isr.split("mul", 1)[0]
+            for register in (12, 13, 14, 15):
+                if not re.search(
+                    rf"^[ \t]*push[ \t]+r{register}[ \t]*$",
+                    prologue,
+                    re.IGNORECASE | re.MULTILINE,
+                ):
+                    raise AssertionError(
+                        "MCS251 ISR using MUL WR12 did not preserve "
+                        f"R{register}:\n{multiply_isr}"
+                    )
+
         high_register_shift = function_body(
             assembly["mcs251"], "mcs251_high_register_shift"
         )

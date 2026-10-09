@@ -849,6 +849,46 @@ static mcs51opcodedata mcs51opcodeDataTable[] =
     {"xrl",  "",  "",   "rw", "r"},
   };
 
+/* MUL/DIV Rm,Rm and WRj,WRj write an extended destination: the word
+   holding Rm, or the dword holding WRj (e.g. MUL WR12,WR8 writes
+   R12-R15).  The operand table only knows the named register. */
+static void
+mcs251UpdateExtendedDestination (asmLineNode *aln, const char *op)
+{
+  int n, first, count, i;
+
+  if ((op[0] == 'w' && op[1] == 'r' && sscanf (op + 2, "%d", &n) == 1))
+    {
+      first = n & ~3;
+      count = 4;
+    }
+  else if (op[0] == 'r' && sscanf (op + 1, "%d", &n) == 1)
+    {
+      first = n & ~1;
+      count = 2;
+    }
+  else
+    return;                     /* MUL AB / DIV AB */
+
+  for (i = first; i < first + count && i < 16; i++)
+    {
+      char name[4];
+      int idx;
+
+      if (i == 10)
+        idx = B_IDX;
+      else if (i == 11)
+        idx = A_IDX;
+      else
+        {
+          snprintf (name, sizeof name, "r%d", i);
+          idx = mcs251_regname_to_idx (name);
+        }
+      if (idx >= 0)
+        aln->regsWritten = bitVectSetBit (aln->regsWritten, idx);
+    }
+}
+
 static int
 mcs51opcodeCompare (const void *key, const void *member)
 {
@@ -933,6 +973,8 @@ asmLineNodeFromLineNode (lineNode *ln)
     {
       updateOpRW (aln, op1, opdat->op1type);
       updateOpRW (aln, op2, opdat->op2type);
+      if (!strcmp (inst, "mul") || !strcmp (inst, "div"))
+        mcs251UpdateExtendedDestination (aln, op1);
       if (!strcmp (inst, "jnz") || !strcmp (inst, "jz"))
         aln->regsRead = bitVectSetBit (aln->regsRead, A_IDX);
       if (strchr(opdat->pswtype,'r'))
