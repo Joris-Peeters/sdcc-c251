@@ -91,8 +91,10 @@ static struct
   /* DPTR value tracking: when the code generator knows that dptr/dpxl
      already hold a particular far-symbol address, it can skip the
      redundant mov dptr,#X / mov dpxl,#Y pair.  The cache is invalidated
-     at every label (control-flow join) and after any instruction that
-     might modify dptr. */
+     at every label (control-flow join), and mcs251_dptrCacheObserve()
+     invalidates it after every emitted instruction that writes DPL, DPH,
+     DPXL or calls code; loadDptrFromOperand() revalidates it after its
+     own loads. */
   struct {
     char symbol[64];      /* cached dptr value from opGet() */
     char dpxlSymbol[64];  /* cached dpxl value from opGet() */
@@ -243,6 +245,74 @@ static const char *
 farPointerRegister (void)
 {
   return "dpx";
+}
+
+/*-----------------------------------------------------------------*/
+/* mcs251_dptrCacheObserve - called for every emitted line (through */
+/*   the port's rtrackUpdate hook): forget the cached DPTR value     */
+/*   when the line can change DPL, DPH or DPXL.                      */
+/*-----------------------------------------------------------------*/
+static bool
+dptrOperand (const char *op, size_t len)
+{
+  static const char *const names[] = {
+    "dpl", "dph", "dpxl", "dptr", "dpx", "dr56", "wr56", "wr58", "r57", "r58", "r59",
+    "0x82", "0x83", "0x84", "_DPL", "_DPH", "_DPXL", NULL
+  };
+
+  while (len && isspace ((unsigned char) op[len - 1]))
+    len--;
+  for (int i = 0; names[i]; i++)
+    if (strlen (names[i]) == len && !strncmp (op, names[i], len))
+      return true;
+  return false;
+}
+
+void
+mcs251_dptrCacheObserve (const char *line)
+{
+  const char *p = line, *mn, *op1, *op2;
+  size_t mnlen;
+
+  if (!_G.dptrCache.valid)
+    return;
+  while (isspace ((unsigned char) *p))
+    p++;
+  if (!*p || *p == ';')
+    return;
+  mn = p;
+  while (*p && !isspace ((unsigned char) *p))
+    p++;
+  mnlen = p - mn;
+  if (mn[mnlen - 1] == ':')                     /* a label: control flow join */
+    {
+      _G.dptrCache.valid = false;
+      return;
+    }
+  if ((mnlen == 5 && (!strncmp (mn, "ecall", 5) || !strncmp (mn, "lcall", 5) ||
+                      !strncmp (mn, "acall", 5))) ||
+      (mnlen == 4 && !strncmp (mn, "call", 4)))
+    {
+      _G.dptrCache.valid = false;
+      return;
+    }
+  if (mnlen == 4 && (!strncmp (mn, "push", 4) || !strncmp (mn, "cjne", 4)))
+    return;                                     /* read their operands only */
+  while (isspace ((unsigned char) *p))
+    p++;
+  op1 = p;
+  op2 = strchr (op1, ',');
+  /* The first operand is the destination; XCH writes both. */
+  if (dptrOperand (op1, op2 ? (size_t) (op2 - op1) : strlen (op1)))
+    _G.dptrCache.valid = false;
+  else if (op2 && mnlen >= 3 && !strncmp (mn, "xch", 3))
+    {
+      op2++;
+      while (isspace ((unsigned char) *op2))
+        op2++;
+      if (dptrOperand (op2, strcspn (op2, ",;")))
+        _G.dptrCache.valid = false;
+    }
 }
 
 static void
@@ -2360,6 +2430,7 @@ loadDptrFromOperand (operand *op, bool loadBToo)
                   emitcode ("mov", "dpxl,%s", dpxl_buf);
                   strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
                            sizeof(_G.dptrCache.dpxlSymbol) - 1);
+                  _G.dptrCache.valid = true;
                 }
               else if (_G.dptrCache.valid &&
                   dptr_buf[0])
@@ -2444,6 +2515,7 @@ loadDptrFromOperand (operand *op, bool loadBToo)
                                sizeof(_G.dptrCache.symbol) - 1);
                       strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
                                sizeof(_G.dptrCache.dpxlSymbol) - 1);
+                      _G.dptrCache.valid = true;
                     }
                   else
                     {

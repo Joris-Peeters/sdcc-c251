@@ -262,6 +262,10 @@ bool _mcs251_rtrackUpdate (const char *line)
 {
   bool modified = false;
 
+  /* Not part of the optional tracking below: the code generator's DPTR
+     cache must see every line that changes DPTR. */
+  mcs251_dptrCacheObserve (line);
+
   if (enable == -1)
     enable = (NULL != getenv("SDCC_REGTRACK"));
 

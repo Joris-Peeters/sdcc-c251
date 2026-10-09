@@ -89,6 +89,7 @@ asmop;
 
 void mcs251_genCode (iCode *);
 void mcs251_emitDebuggerSymbol (const char *);
+void mcs251_dptrCacheObserve (const char *line);
 
 bool mcs251IsReturned (const char *what);
 
