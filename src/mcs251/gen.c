@@ -3191,17 +3191,52 @@ mcs251DwordForNativeTuple (const asmop *aop)
   return dwordRegisters[first / 4];
 }
 
+/* Push one byte of a multiply operand without touching A where the 251
+   allows it: PUSH takes #data, a register or a direct address. */
+static void
+mcs251PushMulByte (operand *op, int offset)
+{
+  asmop *aop = AOP (op);
+  const char *s = opGet (op, offset, FALSE, FALSE);
+
+  if (*s == '#')
+    {
+      _G.stack.pushed++;
+      emitcode ("push", "%s", s);
+    }
+  else if (aop->type == AOP_REG || aop->type == AOP_DIR || aop->type == AOP_SFR || aop->type == AOP_ACC)
+    emitpush (s);
+  else
+    {
+      MOVA (s);
+      emitpush ("acc");
+    }
+}
+
+static bool
+mcs251OperandInAcc (operand *op)
+{
+  asmop *aop = AOP (op);
+
+  return aop->type == AOP_ACC || (aop->type == AOP_REG && aop->regs[A_IDX] >= 0);
+}
+
 /* Generate the architectural unsigned 16x16-to-32 multiply.  WR12 selects
    DR12 as the product and WR8 is a disjoint source, avoiding the undefined
-   source/output overlap boundary.  Conservatively preserve both scratch
-   tuples when they do not already form the result. */
+   source/output overlap boundary.  R8, R9 and R12-R15 are preserved unless
+   they are part of the result.  When the result uses some of them (but is
+   not DR12 itself), the product goes through the stack, so restoring the
+   other scratch registers cannot overwrite result bytes. */
 static bool
 mcs251GenUnsignedWordMultiply (operand *left, operand *right,
                                operand *result)
 {
+  static const int scratch[] = { R8_IDX, R9_IDX, R12_IDX, R13_IDX, R14_IDX, R15_IDX };
+  static const char *const scratchName[] = { "r8", "r9", "r12", "r13", "r14", "r15" };
   const char *resultDword;
-  bool preserveDword;
-  int offset;
+  bool save[6];
+  bool resultInScratch = false;
+  int offset, i;
 
   if (AOP_SIZE (left) != 2 || AOP_SIZE (right) != 2 ||
       AOP_SIZE (result) != 4 ||
@@ -3210,28 +3245,30 @@ mcs251GenUnsignedWordMultiply (operand *left, operand *right,
     return FALSE;
 
   resultDword = mcs251DwordForNativeTuple (AOP (result));
-  preserveDword = !resultDword || strcmp (resultDword, "dr12");
-
-  emitpush ("r8");
-  emitpush ("r9");
-  if (preserveDword)
+  for (i = 0; i < 6; i++)
     {
-      emitpush ("r12");
-      emitpush ("r13");
-      emitpush ("r14");
-      emitpush ("r15");
+      bool inResult = AOP_TYPE (result) == AOP_REG && AOP (result)->regs[scratch[i]] >= 0;
+      save[i] = !inResult;
+      resultInScratch |= inResult;
     }
 
-  for (offset = 0; offset < 2; ++offset)
+  for (i = 0; i < 6; i++)
+    if (save[i])
+      emitpush (scratchName[i]);
+
+  /* An operand held in A (e.g. the product of a preceding MUL AB) must be
+     pushed before a byte of the other operand is loaded through A.  The
+     multiply is commutative, so just swap them. */
+  if (mcs251OperandInAcc (right) && !mcs251OperandInAcc (left))
     {
-      MOVA (opGet (left, offset, FALSE, FALSE));
-      emitpush ("acc");
+      operand *t = left;
+      left = right;
+      right = t;
     }
   for (offset = 0; offset < 2; ++offset)
-    {
-      MOVA (opGet (right, offset, FALSE, FALSE));
-      emitpush ("acc");
-    }
+    mcs251PushMulByte (left, offset);
+  for (offset = 0; offset < 2; ++offset)
+    mcs251PushMulByte (right, offset);
 
   emitpop ("r8");
   emitpop ("r9");
@@ -3239,20 +3276,31 @@ mcs251GenUnsignedWordMultiply (operand *left, operand *right,
   emitpop ("r13");
   emitcode ("mul", "wr12,wr8");
 
-  opPut (result, "r15", 0);
-  opPut (result, "r14", 1);
-  opPut (result, "r13", 2);
-  opPut (result, "r12", 3);
-
-  if (preserveDword)
+  if (resultDword && !strcmp (resultDword, "dr12"))
+    ;                                   /* already in place */
+  else if (!resultInScratch)
     {
-      emitpop ("r15");
-      emitpop ("r14");
-      emitpop ("r13");
-      emitpop ("r12");
+      opPut (result, "r15", 0);
+      opPut (result, "r14", 1);
+      opPut (result, "r13", 2);
+      opPut (result, "r12", 3);
     }
-  emitpop ("r9");
-  emitpop ("r8");
+  else
+    {
+      emitpush ("r12");
+      emitpush ("r13");
+      emitpush ("r14");
+      emitpush ("r15");
+      for (offset = 0; offset < 4; ++offset)
+        {
+          emitpop ("acc");
+          opPut (result, "a", offset);
+        }
+    }
+
+  for (i = 5; i >= 0; i--)
+    if (save[i])
+      emitpop (scratchName[i]);
 
   return TRUE;
 }
