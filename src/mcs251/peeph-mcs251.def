@@ -640,6 +640,8 @@ replace {
 // the hex offsets are consecutive.  The byte order was verified against
 // QEMU: WRj loads Rj from the lower address and Rj+1 from the higher one,
 // which is exactly what the accumulator pair produced.
+// The byte sequence leaves the second byte in A; when A is still read
+// afterwards, the word move is followed by mov a,rN (still 4 bytes saved).
 replace {
 	mov	a,@spx-0x%1
 	mov	r7,a
@@ -647,6 +649,16 @@ replace {
 	mov	r6,a
 } by {
 	mov	wr6,@spx-0x%2
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,@spx-0x%1
+	mov	r7,a
+	mov	a,@spx-0x%2
+	mov	r6,a
+} by {
+	mov	wr6,@spx-0x%2
+	mov	a,r6
 } if inSequence('1' %1 %2)
 
 replace {
@@ -656,6 +668,16 @@ replace {
 	mov	r4,a
 } by {
 	mov	wr4,@spx-0x%2
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,@spx-0x%1
+	mov	r5,a
+	mov	a,@spx-0x%2
+	mov	r4,a
+} by {
+	mov	wr4,@spx-0x%2
+	mov	a,r4
 } if inSequence('1' %1 %2)
 
 replace {
@@ -665,6 +687,16 @@ replace {
 	mov	r2,a
 } by {
 	mov	wr2,@spx-0x%2
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,@spx-0x%1
+	mov	r3,a
+	mov	a,@spx-0x%2
+	mov	r2,a
+} by {
+	mov	wr2,@spx-0x%2
+	mov	a,r2
 } if inSequence('1' %1 %2)
 
 replace {
@@ -674,9 +706,20 @@ replace {
 	mov	r0,a
 } by {
 	mov	wr0,@spx-0x%2
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,@spx-0x%1
+	mov	r1,a
+	mov	a,@spx-0x%2
+	mov	r0,a
+} by {
+	mov	wr0,@spx-0x%2
+	mov	a,r0
 } if inSequence('1' %1 %2)
 
-// Merge byte-pair hardware-stack stores into native 16-bit WR stores.
+// Merge byte-pair hardware-stack stores into native 16-bit WR stores.  As
+// above, A ends up holding the second byte.
 replace {
 	mov	a,r7
 	mov	@spx-0x%1,a
@@ -684,6 +727,16 @@ replace {
 	mov	@spx-0x%2,a
 } by {
 	mov	@spx-0x%2,wr6
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,r7
+	mov	@spx-0x%1,a
+	mov	a,r6
+	mov	@spx-0x%2,a
+} by {
+	mov	@spx-0x%2,wr6
+	mov	a,r6
 } if inSequence('1' %1 %2)
 
 replace {
@@ -693,6 +746,16 @@ replace {
 	mov	@spx-0x%2,a
 } by {
 	mov	@spx-0x%2,wr4
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,r5
+	mov	@spx-0x%1,a
+	mov	a,r4
+	mov	@spx-0x%2,a
+} by {
+	mov	@spx-0x%2,wr4
+	mov	a,r4
 } if inSequence('1' %1 %2)
 
 replace {
@@ -702,6 +765,16 @@ replace {
 	mov	@spx-0x%2,a
 } by {
 	mov	@spx-0x%2,wr2
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,r3
+	mov	@spx-0x%1,a
+	mov	a,r2
+	mov	@spx-0x%2,a
+} by {
+	mov	@spx-0x%2,wr2
+	mov	a,r2
 } if inSequence('1' %1 %2)
 
 replace {
@@ -711,4 +784,14 @@ replace {
 	mov	@spx-0x%2,a
 } by {
 	mov	@spx-0x%2,wr0
+} if inSequence('1' %1 %2), notUsed('a')
+
+replace {
+	mov	a,r1
+	mov	@spx-0x%1,a
+	mov	a,r0
+	mov	@spx-0x%2,a
+} by {
+	mov	@spx-0x%2,wr0
+	mov	a,r0
 } if inSequence('1' %1 %2)
