@@ -481,6 +481,28 @@ replace {
 
 // === MCS251 code-size optimizations ===
 
+// Branch relaxation.  The generator emits every unconditional jump as a
+// 4-byte EJMP (LONG_JUMP), but SJMP (2 bytes) reaches -128..+127 within the
+// region.  Relaxing first lets the MCS-51 "jcc over sjmp" rules (108.a-e)
+// fold "jc L1 / sjmp L2 / L1:" into "jnc L2".  labelInRange() uses the
+// conservative instruction sizes from main.c, refuses jumps that belong
+// to a jump table (whose entries stay 4 bytes: the table is indexed in
+// steps of 4) and fails for labels outside the function (tail calls).
+replace {
+	ejmp	%1
+%1:
+} by {
+	;	MCS251 removed redundant ejmp
+%1:
+} if notInJumpTable(), labelRefCountChange(%1 -1)
+
+replace restart {
+	ejmp	%5
+} by {
+	sjmp	%5
+} if labelInRange(%5)
+
+
 // Eliminate redundant 24-bit dptr reload when dptr is preserved across
 // a simple arithmetic operation.  The generator materializes the full
 // 24-bit address before every @dpx access even when dptr was not touched.

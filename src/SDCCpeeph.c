@@ -432,11 +432,13 @@ FBYNAME (labelInRange)
       if (currPl->ic && currPl->ic->op == JUMPTABLE)
         return FALSE;
 
-      /* if the previous two instructions are "ljmp"s then don't
-         do it since it can be part of a jump table */
+      /* if the previous two instructions are "ljmp"s (MCS-251: "ejmp"s)
+         then don't do it since it can be part of a jump table */
       if (currPl->prev && currPl->prev->prev &&
-          strstr (currPl->prev->line, "ljmp") &&
-          strstr (currPl->prev->prev->line, "ljmp"))
+          ((strstr (currPl->prev->line, "ljmp") &&
+            strstr (currPl->prev->prev->line, "ljmp")) ||
+           (strstr (currPl->prev->line, "ejmp") &&
+            strstr (currPl->prev->prev->line, "ejmp"))))
         return FALSE;
 
       /* Calculate the label distance. For mcs51 the jump can be
