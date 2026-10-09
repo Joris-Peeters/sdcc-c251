@@ -8682,7 +8682,12 @@ genSignedRightShift (iCode * ic)
   size = AOP_SIZE (result);
   offset = size - 1;
   MOVA (opGet (left, offset, FALSE, FALSE));
-  emitcode ("rlc", "a");
+  /* When left lives in A, it is read again below: take the sign
+     without rotating A. */
+  if (mcs251OperandInAcc (left))
+    emitcode ("mov", "c,acc.7");
+  else
+    emitcode ("rlc", "a");
   emitcode ("mov", "ov,c");
   /* if it is only one byte then */
   if (size == 1)
