@@ -93,9 +93,10 @@ mcs251_setjmp_irq_off$:
         inc     dr20
         mov     @dr20,r2
 
-        dec     dr24,#4
-        dec     dr24,#2
-        dec     dr24,#1
+        ; DR24 points into the stack now; DR20 is at buf + 4.
+        mov     dr24,dr20
+        inc     dr24,#2
+        inc     dr24,#1
         mov     r0,@dr24
         inc     dr24
         mov     r1,@dr24
