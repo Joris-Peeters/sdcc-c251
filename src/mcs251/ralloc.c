@@ -3616,6 +3616,12 @@ positionRegsReverse (eBBlock ** ebbs, int count)
   for (i = count - 1; i >= 0; i--)
     for (ic = ebbs[i]->ech; ic; ic = ic->prev)
       {
+        /* As in serialRegAssign: a pointer and the value read or written
+           through it have unrelated byte layouts.  Matching them reordered
+           the value's registers and crossed them with another iCode that
+           uses it. */
+        if (POINTER_SET (ic) || POINTER_GET (ic))
+          continue;
         if (IC_LEFT (ic) && IS_SYMOP (IC_LEFT (ic)) && OP_SYMBOL (IC_LEFT (ic))->nRegs &&
             IC_RESULT (ic) && IS_SYMOP (IC_RESULT (ic)) && OP_SYMBOL (IC_RESULT (ic))->nRegs)
           {
@@ -3626,6 +3632,74 @@ positionRegsReverse (eBBlock ** ebbs, int count)
           {
             positionRegs (OP_SYMBOL (IC_RESULT (ic)), OP_SYMBOL (IC_RIGHT (ic)), 1);
           }
+      }
+}
+
+/*-----------------------------------------------------------------*/
+/* regsCrossed - result and operand share a register at different  */
+/* byte positions (what positionRegs removes)                      */
+/*-----------------------------------------------------------------*/
+static bool
+regsCrossed (symbol * result, operand * op)
+{
+  symbol *opsym;
+  int count, i, j;
+
+  if (!op || !IS_SYMOP (op))
+    return false;
+  opsym = OP_SYMBOL (op);
+  if (opsym->isspilt || !opsym->nRegs || result->isspilt)
+    return false;
+  count = min (result->nRegs, opsym->nRegs);
+  for (i = 0; i < count; i++)
+    for (j = 0; j < count; j++)
+      if (i != j && result->regs[i] && result->regs[i] == opsym->regs[j])
+        return true;
+  return false;
+}
+
+/*-----------------------------------------------------------------*/
+/* spillCrossedResults - positioning can leave a result sharing a   */
+/* register with an operand at another byte position: positionRegs  */
+/* for the right operand can undo it for the left one, and          */
+/* positionRegsReverse reorders an operand for one iCode at the     */
+/* cost of another.  The code generators only handle shared         */
+/* registers at equal positions, so writing such a result destroys  */
+/* operand bytes still to be read (serpent: x >> 19, x ^ y).  Spill */
+/* those results.  The stack is reached through @SPX, so this needs */
+/* no R0/R1 and none of spillThis' pointer-register spilling.       */
+/*-----------------------------------------------------------------*/
+static void
+spillCrossedResults (eBBlock ** ebbs, int count)
+{
+  int i, j;
+  iCode *ic;
+
+  for (i = 0; i < count; i++)
+    for (ic = ebbs[i]->sch; ic; ic = ic->next)
+      {
+        symbol *sym;
+
+        if (SKIP_IC2 (ic) || POINTER_SET (ic) || POINTER_GET (ic))
+          continue;
+        if (!IC_RESULT (ic) || !IS_SYMOP (IC_RESULT (ic)))
+          continue;
+        sym = OP_SYMBOL (IC_RESULT (ic));
+        if (sym->isspilt || !sym->nRegs)
+          continue;
+        if (!regsCrossed (sym, IC_LEFT (ic)) && !regsCrossed (sym, IC_RIGHT (ic)))
+          continue;
+
+        if (!(sym->remat || sym->usl.spillLoc))
+          createStackSpil (sym);
+        sym->isspilt = sym->spillA = 1;
+        _G.spiltSet = bitVectSetBit (_G.spiltSet, sym->key);
+        bitVectUnSetBit (_G.regAssigned, sym->key);
+        bitVectUnSetBit (_G.totRegAssigned, sym->key);
+        for (j = 0; j < sym->nRegs; j++)
+          sym->regs[j] = NULL;
+        if (sym->usl.spillLoc && !sym->remat)
+          sym->usl.spillLoc->allocreq++;
       }
 }
 
@@ -3682,6 +3756,7 @@ mcs251_assignRegisters (ebbIndex * ebbi)
 
   /* do positionRegs() for all ICs from end to begin */
   positionRegsReverse (ebbs, count);
+  spillCrossedResults (ebbs, count);
 
   /* if stack was extended then tell the user */
   if (_G.stackExtend)
