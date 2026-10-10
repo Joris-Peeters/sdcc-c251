@@ -484,6 +484,17 @@ scan4op (lineNode **pl, const char *pReg, const char *untilOp,
                 isConditionalJump = TRUE;
                 break;
               }
+            /* The MCS-251 compare jumps (after CMP/SUB) branch too. */
+            if (strncmp ("je",  (*pl)->line, 2) == 0 ||
+                strncmp ("jne", (*pl)->line, 3) == 0 ||
+                strncmp ("jg",  (*pl)->line, 2) == 0 ||
+                strncmp ("jle", (*pl)->line, 3) == 0 ||
+                strncmp ("jsg", (*pl)->line, 3) == 0 ||   /* jsg, jsge */
+                strncmp ("jsl", (*pl)->line, 3) == 0)     /* jsl, jsle */
+              {
+                isConditionalJump = TRUE;
+                break;
+              }
             break;
           case 'l':
             if (strncmp ("lcall", (*pl)->line, 5) == 0)
