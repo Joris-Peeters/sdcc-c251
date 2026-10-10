@@ -1747,6 +1747,11 @@ printIvalPtr (symbol *sym, sym_link *type, initList *ilist, struct dbuf_s *oBuf)
           break;
         case 3:
           dbuf_printf (oBuf, "; generic printIvalPtr\n");
+          if (TARGET_IS_MCS251) /* flat 24-bit address, big-endian */
+            {
+              dbuf_printf (oBuf, "\t.byte %s,%s,%s\n", aopLiteral (val, 2), aopLiteral (val, 1), aopLiteral (val, 0));
+              break;
+            }
           if (port->little_endian)
             dbuf_printf (oBuf, "\t.byte %s,%s", aopLiteral (val, 0), aopLiteral (val, 1));
           else
