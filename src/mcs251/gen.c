@@ -958,10 +958,10 @@ genPointerPush (iCode *ic)
           emitcode ("movx", "a,@dptr");
           break;
         case FPOINTER:
-          loadFarPointerByte (FALSE);
+          loadFarPointerByte ();
           break;
         case CPOINTER:
-          loadFarPointerByte (TRUE);
+          loadFarPointerByte ();
           break;
         case GPOINTER:
           emitcode (RUNTIME_CALL, "__gptrget");
@@ -8882,13 +8882,13 @@ emitPtrByteGet (const char *rname, int p_type, bool preserveAinB)
     case FPOINTER:
       if (preserveAinB)
         emitcode ("mov", "b,a");
-      loadFarPointerByte (FALSE);
+      loadFarPointerByte ();
       break;
 
     case CPOINTER:
       if (preserveAinB)
         emitcode ("mov", "b,a");
-      loadFarPointerByte (TRUE);
+      loadFarPointerByte ();
       break;
 
     case GPOINTER:
@@ -9399,7 +9399,7 @@ genFarPointerGet (operand * left, operand * result, iCode * ic, iCode * pi, iCod
           int logicalOffset = mcs251PointerByteOffset (
             operandType (result), offset, AOP_SIZE (result));
 
-          loadFarPointerByte (FALSE);
+          loadFarPointerByte ();
           if (!ifx)
             {
               if (mcs251FarResult)
@@ -9480,7 +9480,7 @@ genCodePointerGet (operand * left, operand * result, iCode * ic, iCode * pi, iCo
           int logicalOffset = mcs251PointerByteOffset (
             operandType (result), offset, AOP_SIZE (result));
 
-          loadFarPointerByte (TRUE);
+          loadFarPointerByte ();
           if (!ifx)
             {
               if (mcs251FarResult)

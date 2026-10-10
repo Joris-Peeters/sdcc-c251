@@ -156,7 +156,9 @@ The language address spaces retain their SDCC meanings:
 
 - `__data` and `__idata` select page-zero edata/direct storage.
 - `__xdata` / `__far` select the flat MCS251 data address space through DPX.
-- `__code` selects the flat code address space and is read-only to C.
+- `__code` selects the flat code address space and is read-only to C.  Code
+  bytes are read with `MOV A,@DR56`, like generic pointers; `MOVC` ignores
+  DPXL and would only reach one region.
 - Unqualified pointers use the flat 24-bit generic representation.
 - `__sfr` and `__sbit` use direct SFR/bit addressing and are not reached by a
   generic pointer conversion.

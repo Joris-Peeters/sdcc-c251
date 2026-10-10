@@ -328,16 +328,13 @@ decrementFarPointer (void)
   emitcode ("dec", "dpx");
 }
 
+/* Read the byte at DPX, in code space too: MOVC ignores DPXL and reads a
+   fixed region (FF:, or the current one on some cores), so a __code object
+   outside it needs the 24-bit MOV A,@DR56, as __gptrget uses. */
 static void
-loadFarPointerByte (bool code)
+loadFarPointerByte (void)
 {
-  if (code)
-    {
-      emitcode ("clr", "a");
-      emitcode ("movc", "a,@a+dptr");
-    }
-  else
-    emitcode ("mov", "a,@dpx");
+  emitcode ("mov", "a,@dpx");
 }
 
 static void
@@ -1984,7 +1981,7 @@ aopGet (asmop *aop, int offset, bool bit16, bool dname)
           if (aop->aopu.aop_sym)
             {
               mcs251LoadFarSymbol (aop, physicalOffset);
-              loadFarPointerByte (aop->code);
+              loadFarPointerByte ();
             }
           else
             {
@@ -2001,7 +1998,7 @@ aopGet (asmop *aop, int offset, bool bit16, bool dname)
                 }
 
               aop->coff = physicalOffset;
-              loadFarPointerByte (aop->code);
+              loadFarPointerByte ();
             }
           dbuf_append_str (&dbuf, dname ? "acc" : "a");
           }
