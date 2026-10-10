@@ -507,16 +507,47 @@ popB (bool pushedB)
     }
 }
 
+/* True if an operand of the iCode being generated holds a byte in B, as the
+   second byte of an A:B accumulator pair (AOP_ACC) does. */
+static bool
+currentIcOperandInB (void)
+{
+  const iCode *ic = genLine.lineElement.ic;
+  operand *ops[3];
+  int i;
+
+  if (!ic)
+    return false;
+  ops[0] = IC_RESULT (ic);
+  ops[1] = IC_LEFT (ic);
+  ops[2] = IC_RIGHT (ic);
+  for (i = 0; i < 3; i++)
+    if (ops[i] && ops[i]->aop && ops[i]->aop->regs[B_IDX] >= 0)
+      return true;
+  return false;
+}
+
+/* The 8051 accumulator forms (ADD/ADDC/SUBB/ANL/ORL/XRL A,Rn) only encode
+   R0-R7; an R8-R15 source goes through B.  B may hold the second byte of an
+   operand, so save it then. */
 static void
 emitRestrictedAccumulatorOp (const char *instruction, const char *source)
 {
   if (isFixedByteRegisterOperand (source))
     {
-      bool pushedB = pushB ();
+      bool saveB = currentIcOperandInB ();
+      bool pushedB = false;
 
+      if (saveB)
+        emitpush ("b");
+      else
+        pushedB = pushB ();
       MOVB (source);
       emitcode (instruction, "a,b");
-      popB (pushedB);
+      if (saveB)
+        emitpop ("b");
+      else
+        popB (pushedB);
     }
   else
     emitcode (instruction, "a,%s", source);

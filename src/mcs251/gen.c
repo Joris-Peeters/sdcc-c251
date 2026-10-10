@@ -5688,8 +5688,7 @@ mcs251EmitBitwiseAccumulatorToLeft (const char *instruction,
 
   if (isFixedByteRegisterOperand (l))
     {
-      MOVB (l);
-      emitcode (instruction, "a,b");
+      emitRestrictedAccumulatorOp (instruction, l);
       opPut (result, "a", offset);
     }
   else
