@@ -878,7 +878,7 @@ printIvalType (symbol * sym, sym_link * type, initList * ilist, struct dbuf_s *o
     {
       if (!!(val = initPointer (ilist, type, 0)))
         {
-          int i, size = getSize (type), le = port->little_endian, top = (options.model == MODEL_FLAT24) ? 3 : 2;;
+          int i, size = getSize (type), le = port->little_endian, top = (TARGET_IS_MCS251 || options.model == MODEL_FLAT24) ? 3 : 2; /* address bytes */
           dbuf_printf (oBuf, "\t.byte ");
           for (i = (le ? 0 : size - 1); le ? (i < size) : (i > -1); i += (le ? 1 : -1))
             {
