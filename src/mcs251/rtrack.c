@@ -255,6 +255,35 @@ static int valuefromliteral (const char* const s)
 }
 
 
+/* The step of INC/DEC: 1, or the #short of the 251 forms INC Rn,#2 and
+   INC A,#4; -1 for an operand that is not an immediate. */
+static int stepAmount (const char *operands)
+{
+  const char *comma = strchr (operands, ',');
+
+  if (!comma)
+    return 1;
+  if (comma[1] != '#')
+    return -1;
+  return (int) strtol (comma + 2, NULL, 0);
+}
+
+/* WRj and DRk (j, k < 16) are pairs and quads of R0..R15, DPX is DR56
+   (DPXL, DPH, DPL); mcs251_regname_to_idx knows only the byte registers. */
+static bool aliasesTrackedRegisters (const char *op)
+{
+  char *end;
+  long n;
+
+  if (!strncmp (op, "dpx", 3))
+    return true;
+  if (strncmp (op, "wr", 2) && strncmp (op, "dr", 2))
+    return false;
+  n = strtol (op + 2, &end, 10);
+  return end != op + 2 && (n < 16 || n == 56);
+}
+
+
 /* tracking values within registers by looking
    at the line passed to the assembler.
    Tries to keep mcs251_regs[] up to date */
@@ -555,6 +584,8 @@ bool _mcs251_rtrackUpdate (const char *line)
         {
           rtrack_data_unset (regIdx);
         }
+      else if (aliasesTrackedRegisters (line + 4))
+        invalidateAll ();
       return false;
     }
 
@@ -586,10 +617,11 @@ bool _mcs251_rtrackUpdate (const char *line)
       if (!strncmp (line, "inc\t", 4))
         {
           int regIdx = mcs251_regname_to_idx (line + 4);
+          int step = stepAmount (line + 4);
           if (0 <= regIdx)
             {
-              if (mcs251_regs[regIdx].rtrack.valueKnown)
-                rtrack_data_set_val (regIdx, (unsigned char) (mcs251_regs[regIdx].rtrack.value + 1));
+              if (mcs251_regs[regIdx].rtrack.valueKnown && step > 0)
+                rtrack_data_set_val (regIdx, (unsigned char) (mcs251_regs[regIdx].rtrack.value + step));
               else
                 /* explicitly unsetting (could be known by symbol).
                    not yet handling offset to a symbol. (idata/pdata) */
@@ -597,6 +629,8 @@ bool _mcs251_rtrackUpdate (const char *line)
 
               return false;
             }
+          if (aliasesTrackedRegisters (line + 4))
+            invalidateAll ();
         }
       return false;
     }
@@ -794,10 +828,13 @@ bool _mcs251_rtrackUpdate (const char *line)
   if (!strncmp (line, "dec\t", 4))
     {
       int regIdx = mcs251_regname_to_idx (line + 4);
+      int step = stepAmount (line + 4);
       if (0 <= regIdx)
         {
-          if (mcs251_regs[regIdx].rtrack.valueKnown)
-            rtrack_data_set_val (regIdx, (unsigned char) (mcs251_regs[regIdx].rtrack.value - 1));
+          if (mcs251_regs[regIdx].rtrack.valueKnown && step > 0)
+            rtrack_data_set_val (regIdx, (unsigned char) (mcs251_regs[regIdx].rtrack.value - step));
+          else if (step <= 0)
+            rtrack_data_unset (regIdx);
 
           /* not handling offset to a symbol. invalidating if needed */
           if (NULL != mcs251_regs[regIdx].rtrack.symbol)
@@ -805,6 +842,8 @@ bool _mcs251_rtrackUpdate (const char *line)
 
           return false;
         }
+      if (aliasesTrackedRegisters (line + 4))
+        invalidateAll ();
       return false;
     }
 
@@ -856,7 +895,8 @@ bool _mcs251_rtrackUpdate (const char *line)
       return false;
     }
 
-  if (!strncmp (line, "mul\t", 4))
+  /* MUL WRj,WRj and DIV WRj,WRj leave A and B alone: the catch-all below */
+  if (!strcmp (line, "mul\tab"))
     {
       if (mcs251_regs[A_IDX].rtrack.valueKnown && mcs251_regs[B_IDX].rtrack.valueKnown)
         {
@@ -874,12 +914,17 @@ bool _mcs251_rtrackUpdate (const char *line)
       return false;
     }
 
-  if (!strncmp (line, "div\t", 4))
+  if (!strcmp (line, "div\tab"))
     {
-      if (mcs251_regs[A_IDX].rtrack.valueKnown && mcs251_regs[B_IDX].rtrack.valueKnown)
+      /* Both from the old A; a zero divisor leaves A and B undefined. */
+      if (mcs251_regs[A_IDX].rtrack.valueKnown && mcs251_regs[B_IDX].rtrack.valueKnown &&
+          mcs251_regs[B_IDX].rtrack.value != 0)
         {
-           rtrack_data_set_val (A_IDX, (unsigned char) (mcs251_regs[A_IDX].rtrack.value / mcs251_regs[B_IDX].rtrack.value));
-           rtrack_data_set_val (B_IDX, (unsigned char) (mcs251_regs[A_IDX].rtrack.value % mcs251_regs[B_IDX].rtrack.value));
+           unsigned char dividend = mcs251_regs[A_IDX].rtrack.value;
+           unsigned char divisor = mcs251_regs[B_IDX].rtrack.value;
+
+           rtrack_data_set_val (A_IDX, (unsigned char) (dividend / divisor));
+           rtrack_data_set_val (B_IDX, (unsigned char) (dividend % divisor));
         }
       else
         {
