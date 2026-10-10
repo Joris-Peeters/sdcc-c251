@@ -154,6 +154,13 @@ struct
   {var_xdata, "%P", "X:0xAABB"},
   {var_code, "%P", "C:0xAABB"},
 #endif
+#elif defined(__SDCC) && defined(__SDCC_mcs251)
+  // mcs251 pointers are flat 24-bit addresses.
+  {(void *)0xAABB, "%p", "0x00aabb"},
+  {(void *)0x12AABBUL, "%p", "0x12aabb"},
+#ifdef PTR_NON_STD
+  {(void *)0xAABB, "%P", "0x00AABB"},
+#endif
 #else
   {(void *)0xAABB, "%p", "0xaabb"},
 #ifdef PTR_NON_STD
