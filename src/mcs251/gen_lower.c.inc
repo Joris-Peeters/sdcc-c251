@@ -1448,7 +1448,11 @@ aopOp (operand *op, iCode *ic, bool result)
       if (sym->remat)
         {
           sym->aop = op->aop = aop = aopForRemat (sym);
-          aop->size = operandSize (op);
+          /* The asmop holds an address.  For a pointer member of an
+             aggregate (aggr2ptr == 2) operandSize () is the size of the
+             member, not of its address, and a 1-byte __near member would
+             lose DPXL. */
+          aop->size = getSize (operandType (op));
           aop->aop_litimmd_is_gptr = (aop->size == GPTRSIZE && (IS_GENPTR (sym->type) || IFFUNC_ISBANKEDCALL (sym->type)));
           aopSetOperandType (aop, op);
           return;
