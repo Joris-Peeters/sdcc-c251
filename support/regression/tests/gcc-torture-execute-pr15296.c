@@ -88,11 +88,13 @@ testTortureExecute (void)
   union u0 uv[] = {{ .i = 111 }, { .i = 222 }, { .i = 333 }, { .i = 444 }};
   struct s1 s = { 0, {{ .i = 555 }, { .i = 0 }, { .i = 999 }, { .i = 777 }}};
 #if !(defined(__SDCC_pic14) && !defined(__SDCC_PIC14_ENHANCED)) // Pseudo-stack size limit
+#if !defined(__SDCC_mcs251) // intptr_t is 4 bytes, pointers 3, big-endian: storing .i and reading .r does not give the pointer.
   f (0, &s, 0, 20000, 10000, (W) uv);
   if (s.m1[0].i != (W) uv || s.m1[1].i != 0 || s.m1[2].i != 999
       || s.m1[3].i != 777 || uv[0].i != 111 || uv[1].i != 222
       || uv[2].i != 0 || uv[3].i != 444)
     ASSERT (0);
+#endif
   return;
 #endif
 #endif
