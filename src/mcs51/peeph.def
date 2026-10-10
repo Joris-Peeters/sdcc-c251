@@ -1704,7 +1704,7 @@ replace restart {
 	xch	a,%2
 	inc	dptr
 	movc	a,@a+dptr
-}
+} if notFixedByteReg(%2)
 
 // char indexed access to: char __code table[] = {4,3,2,1};
 replace {
@@ -2818,7 +2818,7 @@ replace restart {
 	;	Peephole 240	use clr instead of addc a,#0
 	clr	a
 	addc	a,%1
-} if notSame(%1 '@dpx'), notSimilar(%1 '@spx')
+} if notSame(%1 '@dpx'), notSimilar(%1 '@spx'), notFixedByteReg(%1)
 
 // peepholes 241.a0 to 241.d and 241.e0 to 241.h need to be in order
 replace {
@@ -3999,7 +3999,7 @@ replace {
 } by {
 	;	Peephole 253.a	optimized decrement with compare
 	djnz	%1,%2
-} if notVolatile(%1), lowDJNZReg(%1)
+} if notVolatile(%1), notFixedByteReg(%1)
 
 // unsigned char i=8; do{ } while(--i != 0);
 // this applies if i is kept in data memory
@@ -4011,7 +4011,7 @@ replace {
 } by {
 	;	Peephole 253.b	optimized decrement with compare
 	djnz	%1,%2
-} if notVolatile(%1), operandsNotRelated(%1 '@r0' '@r1'), lowDJNZReg(%1)
+} if notVolatile(%1), operandsNotRelated(%1 '@r0' '@r1'), notFixedByteReg(%1)
 
 
 // applies to f.e. funptrs.c
@@ -4214,7 +4214,7 @@ replace {
 	mov	%1,a
 %4:
 %3:
-} if notVolatile(%1), labelRefCountChange(%3 -1)
+} if notVolatile(%1), labelRefCountChange(%3 -1), notFixedByteReg(%1)
 
 // in_byte<<=1; if(in_bit) in_byte|=1;
 replace {
@@ -4848,7 +4848,7 @@ replace {
 	xch	a,%2
 	mov	acc.0,c
 	mov	%1,a
-}
+} if notFixedByteReg(%2)
 
 // applies to: a = (a << 15) | (a >> 1);
 replace {
@@ -4870,7 +4870,7 @@ replace {
 	xch	a,%2
 	mov	acc.7,c
 	mov	%1,a
-}
+} if notFixedByteReg(%2)
 
 replace {
 	cpl	c

@@ -2607,12 +2607,13 @@ FBYNAME (notInJumpTable)
 }
 
 /*-----------------------------------------------------------------*/
-/* lowDJNZReg - the operand is a byte register DJNZ can address.     */
-/* MCS-251 DJNZ only encodes R0-R7, so a rule that folds a decrement */
-/* into DJNZ must not fire for the fixed R8-R15 byte registers.      */
+/* notFixedByteReg - the operand is not one of the MCS-251 fixed byte */
+/* registers R8-R15.  The MCS-51 Rn forms of DJNZ, CJNE, XCH, ADDC   */
+/* and SUBB only encode R0-R7, so a rule that moves an operand into  */
+/* one of them must not fire for R8-R15.                             */
 /* MCS-51 never allocates those, so this condition is a no-op there. */
 /*-----------------------------------------------------------------*/
-FBYNAME (lowDJNZReg)
+FBYNAME (notFixedByteReg)
 {
   char *var;
   set *operands = setFromConditionArgs (cmdLine, vars);
@@ -2620,7 +2621,7 @@ FBYNAME (lowDJNZReg)
   if (!operands || !(var = setFirstItem (operands)))
     {
       fprintf (stderr,
-               "*** internal error: lowDJNZReg peephole restriction"
+               "*** internal error: notFixedByteReg peephole restriction"
                " requires an operand: %s\n", cmdLine);
       return FALSE;
     }
@@ -2741,7 +2742,7 @@ ftab[] =                                            // sorted on the number of t
     "notInJumpTable", notInJumpTable
   },
   {
-    "lowDJNZReg", lowDJNZReg
+    "notFixedByteReg", notFixedByteReg
   },
 };
 
