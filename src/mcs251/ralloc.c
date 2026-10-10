@@ -638,6 +638,27 @@ noOverLap (set * itmpStack, symbol * fsym)
 }
 
 /*-----------------------------------------------------------------*/
+/* noSizeMismatchAtBoundary - a big-endian value of another size   */
+/* has its least significant byte elsewhere in the shared spill    */
+/* location.  That is only harmless if the live ranges don't meet: */
+/* in the iCode where one dies and the other is born, writing the  */
+/* result clobbers operand bytes not read yet (pointer + long).    */
+/*-----------------------------------------------------------------*/
+static int
+noSizeMismatchAtBoundary (set * itmpStack, symbol * fsym)
+{
+  symbol *sym;
+
+  for (sym = setFirstItem (itmpStack); sym; sym = setNextItem (itmpStack))
+    {
+      if (getSize (sym->type) != getSize (fsym->type) &&
+          sym->liveTo >= fsym->liveFrom && sym->liveFrom <= fsym->liveTo)
+        return 0;
+    }
+  return 1;
+}
+
+/*-----------------------------------------------------------------*/
 /* isFree - will return 1 if the a free spil location is found     */
 /*-----------------------------------------------------------------*/
 static
@@ -656,6 +677,7 @@ DEFSETFUNC (isFree)
      with the one currently being assigned and
      the size can be accommodated  */
   if (sym->isFree && noOverLap (sym->usl.itmpStack, fsym) && getSize (sym->type) >= getSize (fsym->type)
+      && noSizeMismatchAtBoundary (sym->usl.itmpStack, fsym)
       && (IS_BIT (sym->type) == IS_BIT (fsym->type)))
     {
       *sloc = sym;
