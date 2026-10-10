@@ -3121,10 +3121,10 @@ keyForVar (const char *d)
 static void
 bindVar (int key, char **s, hTab ** vtab)
 {
-  char vval[MAX_PATTERN_LEN];
+  struct dbuf_s vval;
   char *vvx;
-  char *vv = vval;
 
+  dbuf_init (&vval, 64);
   /* first get the value of the variable */
   vvx = *s;
   /* the value is ended by a ',' or space or newline or null or ) */
@@ -3136,29 +3136,28 @@ bindVar (int key, char **s, hTab ** vtab)
          *vvx != ';' &&
          *vvx != ')')
     {
-      char ubb = 0;
-      /* if we find a '(' then we need to balance it */
+      /* if we find a '(' then we need to balance it, including the
+         trailing ')', but not past the end of an unbalanced line */
       if (*vvx == '(')
         {
-          ubb++;
-          while (ubb)
+          int ubb = 0;
+          do
             {
-              *vv++ = *vvx++;
               if (*vvx == '(')
                 ubb++;
-              if (*vvx == ')')
+              else if (*vvx == ')')
                 ubb--;
+              dbuf_append_char (&vval, *vvx++);
             }
-          // include the trailing ')'
-          *vv++ = *vvx++;
+          while (ubb && *vvx);
         }
       else
-        *vv++ = *vvx++;
+        dbuf_append_char (&vval, *vvx++);
     }
   *s = vvx;
-  *vv = '\0';
   /* got value */
-  vvx = traceAlloc (&_G.values, Safe_strdup(vval));
+  vvx = traceAlloc (&_G.values, Safe_strdup (dbuf_c_str (&vval)));
+  dbuf_destroy (&vval);
 
   hTabAddItem (vtab, key, vvx);
 }
