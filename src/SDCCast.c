@@ -5579,7 +5579,11 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
       return tree;
 
     case GETWORD:
+      /* The 16 bits, unsigned like GETBYTE's char and the iCode's UINTTYPE;
+         as int, a cast (int)(x >> 16) looked redundant and was dropped, and
+         the iCode then compared the word unsigned. */
       TTYPE (tree) = TETYPE (tree) = newIntLink ();
+      SPEC_USIGN (TETYPE (tree)) = 1;
       return tree;
 
     case LEFT_OP:
