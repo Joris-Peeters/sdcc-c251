@@ -715,6 +715,11 @@ spillLRWithPtrReg (symbol * forSym)
       if (lrsym->isspilt || !lrsym->nRegs || (lrsym->liveTo < forSym->liveFrom))
         continue;
 
+      /* A live range that has ended keeps its regs[], which may now belong
+         to another one: spilling it would free them. */
+      if (!bitVectBitValue (_G.regAssigned, lrsym->key))
+        continue;
+
       /* go thru the registers : if it is either
          r0 or r1 then spill it */
       for (j = 0; j < lrsym->nRegs; j++)
