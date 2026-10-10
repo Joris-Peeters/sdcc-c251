@@ -96,8 +96,8 @@ static struct
      DPXL or calls code; loadDptrFromOperand() revalidates it after its
      own loads. */
   struct {
-    char symbol[64];      /* cached dptr value from opGet() */
-    char dpxlSymbol[64];  /* cached dpxl value from opGet() */
+    char *symbol;         /* cached dptr value from opGet() */
+    char *dpxlSymbol;     /* cached dpxl value from opGet() */
     bool valid;
   } dptrCache;
 }
@@ -2431,153 +2431,23 @@ loadDptrFromOperand (operand *op, bool loadBToo)
             }
           else
             {
-              /* Check the DPTR cache: if dptr already points to the
-                 same far symbol+offset, skip the reload.
-                 opGet returns a pointer to a static buffer, so we must
-                 copy the strings before the next opGet call. */
-              const char *dptr_name = opGet (op, 0, TRUE, FALSE);
-              char dptr_buf[64] = {0};
-              if (dptr_name && dptr_name[0])
-                strncpy (dptr_buf, dptr_name, sizeof(dptr_buf) - 1);
-              const char *dpxl_name = opGet (op, 2, FALSE, FALSE);
-              char dpxl_buf[64] = {0};
-              if (dpxl_name && dpxl_name[0])
-                strncpy (dpxl_buf, dpxl_name, sizeof(dpxl_buf) - 1);
+              /* Skip what the DPTR cache says DPTR and DPXL already hold.
+                 MOV DPTR,#data16 leaves DPXL alone.  opGet returns a static
+                 buffer, so keep copies; symbol names have no length limit. */
+              char *dptrValue = Safe_strdup (opGet (op, 0, TRUE, FALSE));
+              char *dpxlValue = Safe_strdup (opGet (op, 2, FALSE, FALSE));
+              bool sameDptr = _G.dptrCache.valid && !strcmp (dptrValue, _G.dptrCache.symbol);
+              bool sameDpxl = _G.dptrCache.valid && !strcmp (dpxlValue, _G.dptrCache.dpxlSymbol);
 
-              if (_G.dptrCache.valid &&
-                  dptr_buf[0] && dpxl_buf[0] &&
-                  !strcmp (dptr_buf, _G.dptrCache.symbol) &&
-                  !strcmp (dpxl_buf, _G.dptrCache.dpxlSymbol))
-                {
-                  /* dptr and dpxl already hold the right values.
-                     Nothing to emit. */
-                }
-              else if (_G.dptrCache.valid &&
-                  dptr_buf[0] &&
-                  !strcmp (dptr_buf, _G.dptrCache.symbol))
-                {
-                  /* dptr already holds the right low 16 bits.
-                     Only dpxl may need updating. */
-                  emitcode ("mov", "dpxl,%s", dpxl_buf);
-                  strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
-                           sizeof(_G.dptrCache.dpxlSymbol) - 1);
-                  _G.dptrCache.valid = true;
-                }
-              else if (_G.dptrCache.valid &&
-                  dptr_buf[0])
-                {                  /* Try inc dpx for sequential addresses of the same base.
-                     Parse the symbol and offset from both the cached and
-                     new dptr strings.  Format: "NAME" or "(NAME + 0xOFF)". */
-                  char cached_base[48] = {0};
-                  unsigned long cached_off = 0;
-                  char new_base[48] = {0};
-                  unsigned long new_off = 0;
-                  bool cached_parsed = false;
-                  bool new_parsed = false;
-
-                  if (sscanf (_G.dptrCache.symbol, "(%47[^+ ] + 0x%lx)", cached_base, &cached_off) == 2)
-                    cached_parsed = true;
-                  else if (sscanf (_G.dptrCache.symbol, "%47s", cached_base) == 1) {
-                    cached_off = 0;
-                    cached_parsed = true;
-                  }
-
-                  if (sscanf (dptr_buf, "(%47[^+ ] + 0x%lx)", new_base, &new_off) == 2)
-                    new_parsed = true;
-                  else if (sscanf (dptr_buf, "%47s", new_base) == 1) {
-                    new_off = 0;
-                    new_parsed = true;
-                  }
-
-                  /* Fallback: manual parse if sscanf failed */
-                  if (!cached_parsed) {
-                    const char *s = _G.dptrCache.symbol;
-                    if (s[0] == '#') s++;  /* skip immediate prefix */
-                    const char *plus = strchr (s, '+');
-                    if (plus) {
-                      size_t len = plus - s;
-                      while (len > 0 && s[len-1] == ' ') len--;
-                      if (len > 1 && s[0] == '(') {
-                        memcpy (cached_base, s + 1, len - 1);
-                        cached_base[len-1] = '\0';
-                        cached_off = strtoul (plus + 1, NULL, 16);
-                        cached_parsed = true;
-                      }
-                    } else {
-                      strncpy (cached_base, s, sizeof(cached_base) - 1);
-                      cached_off = 0;
-                      cached_parsed = true;
-                    }
-                  }
-                  if (!new_parsed) {
-                    const char *s = dptr_buf;
-                    if (s[0] == '#') s++;  /* skip immediate prefix */
-                    const char *plus = strchr (s, '+');
-                    if (plus) {
-                      size_t len = plus - s;
-                      while (len > 0 && s[len-1] == ' ') len--;
-                      if (len > 1 && s[0] == '(') {
-                        memcpy (new_base, s + 1, len - 1);
-                        new_base[len-1] = '\0';
-                        new_off = strtoul (plus + 1, NULL, 16);
-                        new_parsed = true;
-                      }
-                    } else {
-                      strncpy (new_base, s, sizeof(new_base) - 1);
-                      new_off = 0;
-                      new_parsed = true;
-                    }
-                  }
-
-                  if (cached_parsed && new_parsed &&
-                      !strcmp (cached_base, new_base) &&
-                      new_off > cached_off && new_off <= cached_off + 4)
-                    {
-                      /* Same base, sequential small forward offset.
-                         Use inc dpx instead of reloading. */
-                      unsigned long steps = new_off - cached_off;                      D (emitcode (";", "DPTR cache: inc dpx by %lu", steps));
-                      while (steps--)
-                        emitcode ("inc", "dpx");
-                      /* Only dpxl might need update after inc */
-                      if (strcmp (dpxl_buf, _G.dptrCache.dpxlSymbol))
-                        emitcode ("mov", "dpxl,%s", dpxl_buf);
-                      /* Update cache to new position */
-                      strncpy (_G.dptrCache.symbol, dptr_buf,
-                               sizeof(_G.dptrCache.symbol) - 1);
-                      strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
-                               sizeof(_G.dptrCache.dpxlSymbol) - 1);
-                      _G.dptrCache.valid = true;
-                    }
-                  else
-                    {
-                      if (cached_parsed && new_parsed)
-                        D (emitcode (";", "DPTR cache miss: cached=(%s,0x%lx) new=(%s,0x%lx)",
-                                     cached_base, cached_off, new_base, new_off));
-                      /* MOV DPTR,#data16 leaves DPXL alone, and the cache
-                         is still valid here, so DPXL holds dpxlSymbol. */
-                      bool sameRegion = !strcmp (dpxl_buf, _G.dptrCache.dpxlSymbol);
-                      emitcode ("mov", "dptr,%s", dptr_buf);
-                      if (!sameRegion)
-                        emitcode ("mov", "dpxl,%s", dpxl_buf);
-                      /* Update the cache. */
-                      strncpy (_G.dptrCache.symbol, dptr_buf,
-                               sizeof(_G.dptrCache.symbol) - 1);
-                      strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
-                               sizeof(_G.dptrCache.dpxlSymbol) - 1);
-                      _G.dptrCache.valid = true;
-                    }
-                }
-              else
-                {
-                  /* Cache not valid or no match: full reload. */
-                  emitcode ("mov", "dptr,%s", dptr_buf);
-                  emitcode ("mov", "dpxl,%s", dpxl_buf);
-                  strncpy (_G.dptrCache.symbol, dptr_buf,
-                           sizeof(_G.dptrCache.symbol) - 1);
-                  strncpy (_G.dptrCache.dpxlSymbol, dpxl_buf,
-                           sizeof(_G.dptrCache.dpxlSymbol) - 1);
-                  _G.dptrCache.valid = true;
-                }
+              if (!sameDptr)
+                emitcode ("mov", "dptr,%s", dptrValue);
+              if (!sameDpxl)
+                emitcode ("mov", "dpxl,%s", dpxlValue);
+              Safe_free (_G.dptrCache.symbol);
+              Safe_free (_G.dptrCache.dpxlSymbol);
+              _G.dptrCache.symbol = dptrValue;
+              _G.dptrCache.dpxlSymbol = dpxlValue;
+              _G.dptrCache.valid = true;
             }
           return;
 
