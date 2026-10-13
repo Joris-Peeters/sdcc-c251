@@ -8864,7 +8864,9 @@ genXor (iCode * ic, iCode * ifx)
                 {
                   // this should be the only use of left so A,B can be overwritten
                   char *l = Safe_strdup (opGet (left, offset, FALSE, FALSE));
-                  if (aopIsLitVal (right->aop, offset, 1, 0xff))
+                  /* The high byte of an A/B operand is in B: CPL only
+                     works on A. */
+                  if (aopIsLitVal (right->aop, offset, 1, 0xff) && EQ (l, "a"))
                     emitcode ("cpl", "a");
                   else
                     emitcode ("xrl", "%s,%s", l, opGet (right, offset, FALSE, FALSE));

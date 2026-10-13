@@ -1,4 +1,4 @@
-/* mcs251-xor-acc-pair.c - MCS251 ~ / ^ 0xff.. of a value held in A:B.
+/* xor-acc-pair.c - ~ / ^ 0xff.. of a value held in A:B (mcs51, mcs251).
 
    A 16-bit value returned by a call (e.g. __mulint) arrives in A and B.
    XOR with 0xff in the high byte was emitted as CPL A instead of acting on
