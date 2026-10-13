@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Check that wide fixed shifts do not poison MCS251 jump tables."""
+"""Check that wide fixed shifts do not poison MCS251 jump tables, and that
+the tables are read through DPX rather than MOVC."""
 
 import argparse
 import re
@@ -53,6 +54,15 @@ def check_component_table(body, name):
         re.IGNORECASE | re.MULTILINE,
     ):
         raise AssertionError(f"{name} does not use a 24-bit jump table")
+
+    # MOVC ignores DPXL and reads one fixed region; the tables must be
+    # read through DPX so that code outside that region works.
+    if re.search(r"^[ \t]*movc[ \t]", body, re.IGNORECASE | re.MULTILINE):
+        raise AssertionError(f"{name} reads its jump table with MOVC")
+    if not re.search(
+        r"^[ \t]*mov[ \t]+a,@dpx[ \t]*$", body, re.IGNORECASE | re.MULTILINE
+    ):
+        raise AssertionError(f"{name} does not read its jump table through DPX")
 
     suffixes = (r"\$", r"\$>>8", r"\$>>16")
     for suffix in suffixes:

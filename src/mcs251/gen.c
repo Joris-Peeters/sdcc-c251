@@ -10707,24 +10707,30 @@ genJumpTab (iCode * ic)
       l = "b";
       freeAsmop (cond, NULL, ic, TRUE);
 
-      /* Reconstruct DPX and jump through an otherwise unallocated dword
-         register so ABI argument registers remain untouched. */
-      MOVA (l);
+      /* Read the tables through DPX: MOVC ignores DPXL and reads one fixed
+         region (FF: on Intel/Atmel cores), so a table elsewhere gave
+         garbage targets.  The three tables follow each other, count bytes
+         apart.  Then reconstruct DPX and jump through an otherwise
+         unallocated dword register so ABI argument registers remain
+         untouched. */
       emitcode ("mov", "dptr,#!tlabel", labelKey2num (jtablo->key));
       emitcode ("mov", "dpxl,#(!tlabel >> 16)", labelKey2num (jtablo->key));
-      emitcode ("movc", "a,@a+dptr");
-      emitpush ("acc");
-
       MOVA (l);
-      emitcode ("mov", "dptr,#!tlabel", labelKey2num (jtabhi->key));
-      emitcode ("mov", "dpxl,#(!tlabel >> 16)", labelKey2num (jtabhi->key));
-      emitcode ("movc", "a,@a+dptr");
+      emitcode ("add", "a,dpl");
+      emitcode ("mov", "dpl,a");
+      emitcode ("clr", "a");
+      emitcode ("addc", "a,dph");
+      emitcode ("mov", "dph,a");
+      emitcode ("clr", "a");
+      emitcode ("addc", "a,dpxl");
+      emitcode ("mov", "dpxl,a");
+      emitcode ("mov", "a,@dpx");
       emitpush ("acc");
-
-      MOVA (l);
-      emitcode ("mov", "dptr,#!tlabel", labelKey2num (jtabext->key));
-      emitcode ("mov", "dpxl,#(!tlabel >> 16)", labelKey2num (jtabext->key));
-      emitcode ("movc", "a,@a+dptr");
+      emitcode ("add", "dpx,#%u", count);
+      emitcode ("mov", "a,@dpx");
+      emitpush ("acc");
+      emitcode ("add", "dpx,#%u", count);
+      emitcode ("mov", "a,@dpx");
       emitcode ("mov", "dpxl,a");
       emitpop ("dph");
       emitpop ("dpl");
