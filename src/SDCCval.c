@@ -3604,8 +3604,11 @@ valForCastAggr (ast * aexpr, sym_link * type, ast * cnst, int op)
 
   val = newValue ();
 
+  /* A cast to an integer type, (unsigned long) &a + 2, adds bytes; only a
+     pointer scales by the size of what it points to. */
   SNPRINTF (val->name, sizeof (val->name), "(%s %c %d)",
-            AST_SYMBOL (aexpr)->rname, op, getSize (type->next) * AST_ULONG_VALUE (cnst));
+            AST_SYMBOL (aexpr)->rname, op,
+            (IS_PTR (type) || IS_ARRAY (type) ? getSize (type->next) : 1) * AST_ULONG_VALUE (cnst));
 
   val->type = type;
   val->etype = getSpec (val->type);
