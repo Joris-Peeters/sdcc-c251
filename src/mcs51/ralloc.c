@@ -650,6 +650,11 @@ spillThis (symbol * sym)
   if (!(sym->remat || sym->usl.spillLoc))
     createStackSpil (sym);
 
+  /* A live range that has ended (spillLRWithPtrReg spills those too, for
+     the R0/R1 accesses of the stack spill) keeps its regs[], which may now
+     belong to another live range: do not free them. */
+  bool holdsRegs = bitVectBitValue (_G.regAssigned, sym->key);
+
   /* mark it as spilt & put it in the spilt set */
   sym->isspilt = sym->spillA = 1;
   _G.spiltSet = bitVectSetBit (_G.spiltSet, sym->key);
@@ -661,7 +666,8 @@ spillThis (symbol * sym)
     {
       if (sym->regs[i])
         {
-          freeReg (sym->regs[i]);
+          if (holdsRegs)
+            freeReg (sym->regs[i]);
           sym->regs[i] = NULL;
         }
     }
