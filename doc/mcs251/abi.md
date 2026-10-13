@@ -142,10 +142,14 @@ interrupt, and reentrant-frame nesting within that RAM.
 SPX, three big-endian bytes for the complete `ECALL` return PC, two
 big-endian private scratch bytes used to carry the normalized `longjmp`
 result into the naked restore helper, and eight bytes for R0-R7.  `setjmp`
-snapshots the frame and the currently allocatable general registers with
-interrupts excluded.  `longjmp` re-creates the three-byte frame, restores
-SPX, R0-R7, and the previous interrupt-enable state, and returns the requested
-nonzero value.
+snapshots the frame and R0-R7 with interrupts excluded.  `longjmp`
+re-creates the three-byte frame, restores SPX, R0-R7, and the previous
+interrupt-enable state, and returns the requested nonzero value.
+The compiler keeps no value in a register across a call to `__setjmp`: the
+register allocator spills every live range that spans such a call, as GCC
+does for `returns_twice` functions.  The other registers (R8, R9, R12-R15)
+therefore need no slot in `jmp_buf`; hand-written assembly that calls
+`__setjmp` must not rely on them either.
 The QEMU conformance image sets SPX to `0x0120` before `setjmp` and verifies
 the restored SPX, the `0x1234` result, and live register values with all four
 small/large and default/stack-auto library combinations.

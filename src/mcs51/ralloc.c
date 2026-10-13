@@ -54,6 +54,7 @@ static struct
   int dataExtend;
   bitVect *allBitregs;          /* all bit registers */
   bitVect *allBankregs;         /* all bank registers */
+  bitVect *acrossSetjmp;        /* LRs kept in memory across __setjmp */
 }
 _G;
 
@@ -1548,6 +1549,45 @@ serialRegAssign (eBBlock ** ebbs, int count)
 }
 
 /*-----------------------------------------------------------------*/
+/* spillAcrossSetjmp - keep values that live across __setjmp out   */
+/*                     of the registers                            */
+/*-----------------------------------------------------------------*/
+/* __setjmp returns a second time from longjmp.  The registers then hold
+   what the code before longjmp left in them, and the copy the caller
+   pushed around the call has been overwritten by the pushes of its next
+   call.  Like GCC with setjmp (returns_twice), spill the values that live
+   across the call; their spill locations stay reserved for the whole live
+   range.  Bit variables are left alone. */
+static void
+spillAcrossSetjmp (eBBlock ** ebbs, int count)
+{
+  int i;
+
+  for (i = 0; i < count; i++)
+    {
+      iCode *ic;
+
+      for (ic = ebbs[i]->sch; ic; ic = ic->next)
+        {
+          symbol *sym;
+          int k;
+
+          if (ic->op != CALL || !IS_SYMOP (IC_LEFT (ic)) ||
+              strcmp (OP_SYMBOL (IC_LEFT (ic))->name, "__setjmp"))
+            continue;
+
+          for (sym = hTabFirstItem (liveRanges, &k); sym; sym = hTabNextItem (liveRanges, &k))
+            if (sym->nRegs && sym->regType != REG_BIT && !sym->isspilt &&
+                sym->liveFrom < ic->seq && sym->liveTo > ic->seq)
+              {
+                spillThis (sym);
+                _G.acrossSetjmp = bitVectSetBit (_G.acrossSetjmp, sym->key);
+              }
+        }
+    }
+}
+
+/*-----------------------------------------------------------------*/
 /* fillGaps - Try to fill in the Gaps left by Pass1                */
 /*-----------------------------------------------------------------*/
 static void
@@ -1568,6 +1608,9 @@ fillGaps (void)
       int pdone = 0;
 
       if (!sym->spillA || !sym->clashes || sym->remat)
+        continue;
+
+      if (bitVectBitValue (_G.acrossSetjmp, sym->key))
         continue;
 
       /* if spilt in direct space the original rname is lost */
@@ -3392,6 +3435,7 @@ mcs51_assignRegisters (ebbIndex * ebbi)
   setToNull ((void *) &_G.funcrUsed);
   setToNull ((void *) &_G.regAssigned);
   setToNull ((void *) &_G.totRegAssigned);
+  setToNull ((void *) &_G.acrossSetjmp);
   mcs51_ptrRegReq = _G.stackExtend = _G.dataExtend = 0;
   if ((currFunc && IFFUNC_ISREENT (currFunc->type)) || options.stackAuto)
     {
@@ -3420,6 +3464,8 @@ mcs51_assignRegisters (ebbIndex * ebbi)
   /* first determine for each live range the number of
      registers & the type of registers required for each */
   regTypeNum (*ebbs);
+
+  spillAcrossSetjmp (ebbs, count);
 
   /* and serially allocate registers */
   serialRegAssign (ebbs, count);
