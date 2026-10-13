@@ -58,7 +58,9 @@ def main():
     parser.add_argument("--qemu", required=True)
     parser.add_argument("--machine")
     parser.add_argument("image")
-    parser.add_argument("--timeout", type=float, default=20.0)
+    # Wall-clock seconds, below the framework's SIM_TIMEOUT (180).  20 was
+    # too tight: dilithium-ntt needs about 20 s in the large model alone.
+    parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--trace-log")
     parser.add_argument("--trace-dir")
     args = parser.parse_args()
