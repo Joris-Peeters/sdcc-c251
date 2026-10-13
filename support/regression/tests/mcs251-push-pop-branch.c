@@ -22,8 +22,8 @@ mismatch (int line)
 
 unsigned long gv;
 unsigned long *gp = &gv;
-unsigned long gl = 1;   /* never equal to (unsigned long) gp */
-unsigned int gi = 2;
+unsigned long gl;       /* set to (unsigned long) gp + 1, never equal */
+unsigned int gi;        /* set to (unsigned int) gp + 1 */
 
 static unsigned char
 locals (void)
@@ -54,6 +54,9 @@ testPushPopBranch (void)
 {
   unsigned char r;
 
+  /* Not constants: a variable can be at a low address (mcs51 xdata). */
+  gl = (unsigned long) gp + 1;
+  gi = (unsigned int) gp + 1;
   mismatches = 0;
   r = locals ();
   ASSERT (mismatches == 2);
