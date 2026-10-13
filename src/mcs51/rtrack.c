@@ -872,10 +872,15 @@ bool _mcs51_rtrackUpdate (const char *line)
 
   if (!strncmp (line, "div\t", 4))
     {
-      if (regs8051[A_IDX].rtrack.valueKnown && regs8051[B_IDX].rtrack.valueKnown)
+      /* Both from the old A; a zero divisor leaves A and B undefined. */
+      if (regs8051[A_IDX].rtrack.valueKnown && regs8051[B_IDX].rtrack.valueKnown &&
+          regs8051[B_IDX].rtrack.value != 0)
         {
-           rtrack_data_set_val (A_IDX, (unsigned char) (regs8051[A_IDX].rtrack.value / regs8051[B_IDX].rtrack.value));
-           rtrack_data_set_val (B_IDX, (unsigned char) (regs8051[A_IDX].rtrack.value % regs8051[B_IDX].rtrack.value));
+           unsigned char dividend = regs8051[A_IDX].rtrack.value;
+           unsigned char divisor = regs8051[B_IDX].rtrack.value;
+
+           rtrack_data_set_val (A_IDX, (unsigned char) (dividend / divisor));
+           rtrack_data_set_val (B_IDX, (unsigned char) (dividend % divisor));
         }
       else
         {
