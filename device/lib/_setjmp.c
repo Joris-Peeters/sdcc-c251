@@ -74,18 +74,19 @@ mcs251_setjmp_irq_off$:
         mov     @dr24,r6
         inc     dr24
         mov     @dr24,r7
-        mov     r0,sp
-        mov     r1,sph
+        ; SPH:SP from SPX itself (WR26 of DR24): the SFR address of SPH
+        ; differs between derivatives (S:BEh on Intel and Atmel parts).
         mov     dr24,spx
+        mov     wr0,wr26
         mov     r2,@dr24
         dec     dr24
         mov     r3,@dr24
         dec     dr24
         mov     r4,@dr24
 
-        mov     @dr20,r1
-        inc     dr20
         mov     @dr20,r0
+        inc     dr20
+        mov     @dr20,r1
         inc     dr20
         mov     @dr20,r4
         inc     dr20

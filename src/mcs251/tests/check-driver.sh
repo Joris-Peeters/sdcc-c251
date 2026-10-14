@@ -44,6 +44,13 @@ for runtime_source in "$@"; do
             */_setjmp.c|_setjmp.c)
                 grep -q '^___mcs251_longjmp_restore:' "$runtime_asm"
                 grep -q 'mov[[:space:]][[:space:]]*spx,dpx' "$runtime_asm"
+                # SPH's SFR address differs between derivatives (0x85 on
+                # the STC32G, S:BEh on Intel and Atmel parts): setjmp takes
+                # SPH:SP from SPX instead.
+                if grep -Eiq '^[[:space:]]*[a-z]+[[:space:]].*\bsph\b' "$runtime_asm"; then
+                    echo "MCS251 setjmp reads the SPH SFR: $configuration" >&2
+                    exit 1
+                fi
                 ;;
         esac
         "$sdcc" -mmcs251 --model-$model $stack_flag \
