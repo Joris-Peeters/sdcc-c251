@@ -106,6 +106,19 @@ immediate_fits(a_uint value, unsigned int bits)
 	return address <= unsigned_max || address >= signed_min;
 }
 
+/*
+ * MOV/CMP DRk,#data16 sign-extend the 16-bit immediate, the #0data16 forms
+ * zero-extend it.  Only an absolute value tells which one is meant: for a
+ * relocatable one the assembler sees the offset into its area (-1 for
+ * "ext - 1"), and the linker patches only the 16 bits, so a sign-extending
+ * choice would set the upper word to FFFF (bug: SPX started as FF:FF:xx:xx).
+ */
+static int
+sign_extended_immediate(struct expr *esp)
+{
+	return is_abs(esp) && (esp->e_addr & 0xFF0000) == 0xFF0000;
+}
+
 static void
 out_direct(struct expr *esp, int mode)
 {
@@ -682,7 +695,7 @@ machine(struct mne *mp)
 			case S_IMMED:
 				putcode(op + 0x0E);
 				if (v1 == 2 && op == 0x1B0 &&
-				    (e1.e_addr & 0xFF0000) == 0xFF0000)
+				    sign_extended_immediate(&e1))
 					outab((dst << 4) | 0x0C);
 				else
 					outab((dst << 4) | (v1 << 2));
@@ -951,7 +964,7 @@ machine(struct mne *mp)
 					outrb(&e1, R_NORM);
 				} else {
 					putcode(0x17E);
-					if (v1 == 2 && (e1.e_addr & 0xFF0000) == 0xFF0000)
+					if (v1 == 2 && sign_extended_immediate(&e1))
 						outab((dst << 4) | 0x0C);
 					else
 						outab((dst << 4) | (v1 << 2));

@@ -32,12 +32,16 @@ trap cleanup 0 HUP INT TERM
 cp "$test_dir/reloc-a.asm" "$work_dir/"
 cp "$test_dir/reloc-b.asm" "$work_dir/"
 cp "$test_dir/link.lk" "$work_dir/"
+cp "$test_dir/imm-a.asm" "$test_dir/imm-b.asm" "$test_dir/imm.lk" "$work_dir/"
 
 (
     cd "$work_dir"
     "$assembler" -plosg reloc-a.asm
     "$assembler" -plosg reloc-b.asm
     "$linker" -nf link.lk
+    "$assembler" -plosg imm-a.asm
+    "$assembler" -plosg imm-b.asm
+    "$linker" -nf imm.lk
 )
 
 if ! cmp -s "$test_dir/linked.expected.ihx" "$work_dir/linked.ihx"; then
@@ -48,5 +52,15 @@ fi
 
 if ! grep -q '00FF0018  target' "$work_dir/linked.map"; then
     echo "linked target does not have the expected 24-bit address" >&2
+    exit 1
+fi
+
+# MOV/CMP DRk,#imm with a relocatable value take the zero-extending forms:
+# "mov dr60,#stack_top - 1" must not become 7E FC (DR60 = FFFF003F).
+imm_expected=7EF8003F7E180040BE18003F7EFC00407E1CFFFF7E181234BE1CFFFF
+if ! grep -q "^:1C000000${imm_expected}" "$work_dir/imm.ihx"; then
+    echo "MOV/CMP DRk,#imm: wrong immediate form for a relocatable value" >&2
+    echo "expected ${imm_expected}" >&2
+    cat "$work_dir/imm.ihx" >&2
     exit 1
 fi
