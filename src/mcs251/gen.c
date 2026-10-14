@@ -1832,6 +1832,11 @@ genFunction (iCode * ic)
         emitpush ("dpl");
       if (!inExcludeList ("dph"))
         emitpush ("dph");
+      /* DPXL too: the interrupted code may have loaded it for a 24-bit
+         access it has not made yet (DPTR moves keep DPXL when the region
+         is unchanged), and this ISR may load it for its own. */
+      if (!inExcludeList ("dpxl"))
+        emitpush ("dpxl");
 
       /* R8-R15 are fixed registers, not members of a PSW-selected bank. */
       saveFixedByteRegisters (sym, IFFUNC_HASFCALL (ftype));
@@ -2416,6 +2421,8 @@ genEndFunction (iCode * ic)
 
       restoreFixedByteRegisters (sym, IFFUNC_HASFCALL (ftype));
 
+      if (!inExcludeList ("dpxl"))
+        emitpop ("dpxl");
       if (!inExcludeList ("dph"))
         emitpop ("dph");
       if (!inExcludeList ("dpl"))

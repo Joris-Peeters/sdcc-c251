@@ -190,7 +190,9 @@ xdata above `0x010000`, and verify pointer arithmetic across `0x01ffff` to
 
 MCS251 interrupt functions use the target's extended control-flow sequence and
 return with `RETI`.  The STC32G machine uses the documented four-byte
-interrupt frame.  Application startup must leave the processor in Source
+interrupt frame.  Besides the registers the body uses, an interrupt function
+saves ACC, B, DPL, DPH and DPXL (unless `--exclude-regs` names them): code
+may load DPXL for a 24-bit access some instructions before making it.  Application startup must leave the processor in Source
 mode; the compiler does not change `AUXR2.CPUMODE`.
 
 ## Required conformance tests

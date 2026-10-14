@@ -1,0 +1,5 @@
+-mwx
+-i imm.ihx
+-b MCS251CODE = 0xff0000
+imm-a.rel
+imm-b.rel

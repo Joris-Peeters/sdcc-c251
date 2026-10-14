@@ -679,6 +679,34 @@ mcs251UpdateWideOperandRW (asmLineNode *aln, const char *op,
   long first;
   int bytes;
 
+  /* Register-file and direct-address names of the DPX bytes (DR56 =
+     DPXU:DPXL:DPH:DPL), as dptrOperand in gen_lower.c.inc knows them.  The
+     compiler emits none of them, inline assembler may. */
+  if (!indirect)
+    {
+      if (!strcmp (name, "wr58"))
+        {
+          mcs251UpdateRegRW (aln, DPH_IDX, optype);
+          mcs251UpdateRegRW (aln, DPL_IDX, optype);
+          return true;
+        }
+      if (!strcmp (name, "r58"))
+        {
+          mcs251UpdateRegRW (aln, DPH_IDX, optype);
+          return true;
+        }
+      if (!strcmp (name, "r59"))
+        {
+          mcs251UpdateRegRW (aln, DPL_IDX, optype);
+          return true;
+        }
+      if (!strcmp (name, "wr56") || !strcmp (name, "r57") ||
+          !strcmp (name, "0x84") || !strcmp (name, "_DPXL"))
+        name = "dpxl";
+    }
+  if (!strcmp (name, "dr56"))
+    name = "dpx";
+
   if (!strcmp (name, "dpx") || !strncmp (name, "dpx+", 4))
     {
       const char *access = indirect ? "r" : optype;

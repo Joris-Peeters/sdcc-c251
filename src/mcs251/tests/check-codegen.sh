@@ -243,6 +243,35 @@ if grep -Eq '^[[:space:]]*ljmp[[:space:]]+_timer0_interrupt$' \
     exit 1
 fi
 
+# An interrupt function that writes DPXL (or calls) saves it after DPH and
+# restores it before DPH: the interrupted code may hold a region in DPXL for
+# an access it has not made yet.  One that leaves DPXL alone does not.
+if grep -A12 '^_timer0_interrupt:' "$test_dir/interrupt-vector.asm" |
+        grep -Eq '^[[:space:]]*push[[:space:]]+dpxl'; then
+    echo "MCS251 interrupt function saves an unused DPXL" >&2
+    exit 1
+fi
+if ! awk '
+    /^_[A-Za-z0-9_]+:/ {
+        fn = ($1 ~ /^_(timer1_far_store|external0_inline):$/) ? $1 : ""
+        pushed = popped = 0
+        next
+    }
+    fn == "" { next }
+    /^[[:space:]]*push[[:space:]]+dpxl[[:space:]]*$/ { pushed = 1; next }
+    /^[[:space:]]*push[[:space:]]+dph[[:space:]]*$/ { if (pushed) pushed = -1; next }
+    /^[[:space:]]*pop[[:space:]]+dpxl[[:space:]]*$/ { if (pushed == 1) popped = 1; next }
+    /^[[:space:]]*pop[[:space:]]+dph[[:space:]]*$/ { if (pushed == 1 && !popped) popped = -1; next }
+    /^[[:space:]]*reti[[:space:]]*$/ {
+        if (pushed == 1 && popped == 1) ok++; else bad = bad " " fn
+        fn = ""
+    }
+    END { if (bad != "" || ok != 2) { print bad; exit 1 } }
+' "$test_dir/interrupt-vector.asm"; then
+    echo "MCS251 interrupt function does not save and restore DPXL" >&2
+    exit 1
+fi
+
 # Anonymous-union members overlap in the front end's promoted field list.
 # The MCS251-specific initializer path must consume one initializer for that
 # storage and leave the following values for the tail structure.
