@@ -3931,6 +3931,8 @@ replace {
 // if( resource_is_free ) {
 //     resource_is_free=0; do_something; resource_is_free=1;
 // }
+// jbcSafeBit: not for MCS-251 SFR bits, where JBC can drop a flag that the
+// hardware sets during the instruction (a TSC80251G1D lost TI that way).
 replace {
 	jnb	%1,%2
 %3:
@@ -3940,7 +3942,7 @@ replace {
 	jbc	%1,%3
 	sjmp	%2
 %3:
-} if labelRefCount(%3 0), labelRefCountChange(%3 1)
+} if labelRefCount(%3 0), labelRefCountChange(%3 1), jbcSafeBit(%1)
 
 replace {
 	jb	%1,%2
@@ -3952,7 +3954,7 @@ replace {
 	jbc	%1,%2
 	ljmp	%3
 %2:
-} if labelRefCount %2 1
+} if labelRefCount(%2 1), jbcSafeBit(%1)
 
 
 // not before peephole 250.b

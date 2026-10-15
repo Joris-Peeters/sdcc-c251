@@ -272,6 +272,23 @@ if ! awk '
     exit 1
 fi
 
+# JBC is not made for SFR bits (a TSC80251G1D drops a hardware set of the
+# tested flag that lands during the JBC); bit variables keep the atomic
+# test-and-clear, and MCS-51 output is unchanged.
+jbc_source=$(dirname "$interrupt_source")/jbc-sfr-bit.c
+"$sdcc" -mmcs251 -S -o "$test_dir/jbc-sfr-bit.asm" "$jbc_source"
+"$sdcc" -mmcs51 -S -o "$test_dir/jbc-sfr-bit-mcs51.asm" "$jbc_source"
+if grep -Eq '^[[:space:]]*jbc[[:space:]]+_(TX_DONE|RX_FULL),' \
+        "$test_dir/jbc-sfr-bit.asm"; then
+    echo "MCS251 peephole made JBC on an SFR bit" >&2
+    exit 1
+fi
+grep -Eq '^[[:space:]]*jnb[[:space:]]+_TX_DONE,' "$test_dir/jbc-sfr-bit.asm"
+grep -Eq '^[[:space:]]*clr[[:space:]]+_TX_DONE$' "$test_dir/jbc-sfr-bit.asm"
+grep -Eq '^[[:space:]]*clr[[:space:]]+_RX_FULL$' "$test_dir/jbc-sfr-bit.asm"
+grep -Eq '^[[:space:]]*jbc[[:space:]]+_shared,' "$test_dir/jbc-sfr-bit.asm"
+grep -Eq '^[[:space:]]*jbc[[:space:]]+_TX_DONE,' "$test_dir/jbc-sfr-bit-mcs51.asm"
+
 # Anonymous-union members overlap in the front end's promoted field list.
 # The MCS251-specific initializer path must consume one initializer for that
 # storage and leave the following values for the tail structure.

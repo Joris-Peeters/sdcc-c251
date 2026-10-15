@@ -126,6 +126,14 @@ selection is optimal for every C expression.
 
 ## Boundaries and known limitations
 
+- `JBC` is not generated for SFR bits.  The shared MCS-51 peepholes 250.a/b
+  turn `jnb`/`clr` and `jb`/`clr` into `JBC`, an atomic test-and-clear that
+  stays for bit variables (a flag shared with an interrupt handler).  On a
+  TSC80251G1D a `JBC` on a flag that the hardware sets drops a set that lands
+  during the instruction: a polled `jbc TI` lost TI about once in 13
+  characters, while a `JBC` on another bit of the same SFR lost nothing.  So
+  for SFR bits (and operands that cannot be told apart) the test and the
+  clear stay two instructions.  MCS-51 output is unchanged.
 - The unqualified three-byte pointer is a flat address without an address-space
   tag.  It cannot represent the separate direct SFR window; taking the address
   of an `__sfr` as an unqualified pointer is intentionally diagnosed.

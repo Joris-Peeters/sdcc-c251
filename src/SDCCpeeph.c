@@ -2635,6 +2635,48 @@ FBYNAME (notFixedByteReg)
   return TRUE;
 }
 
+/*-----------------------------------------------------------------*/
+/* jbcSafeBit - JBC on the bit operand cannot lose a set by the       */
+/* hardware.  On a TSC80251G1D (MCS-251) a polled `jbc TI` loses TI    */
+/* now and then: a set that lands between JBC's read and its clear is  */
+/* dropped (a JBC on another bit of the same SFR loses nothing).  So   */
+/* on MCS-251 the operand must be a bit variable, not an SFR bit, and  */
+/* when that cannot be told the answer is no.  Other ports: no change. */
+/*-----------------------------------------------------------------*/
+FBYNAME (jbcSafeBit)
+{
+  char *var;
+  symbol *sym;
+  set *operands;
+
+  if (!TARGET_IS_MCS251)
+    return TRUE;
+
+  operands = setFromConditionArgs (cmdLine, vars);
+  if (!operands || !(var = setFirstItem (operands)))
+    {
+      fprintf (stderr,
+               "*** internal error: jbcSafeBit peephole restriction"
+               " requires an operand: %s\n", cmdLine);
+      return FALSE;
+    }
+
+  /* b0 ... b7: the compiler's bit registers in BIT_BANK */
+  if (var[0] == 'b' && ISCHARDIGIT (var[1]) && var[1] < '8' && !var[2])
+    return TRUE;
+
+  /* A global bit variable or sbit: _name. */
+  if (var[0] == '_' && !strchr (var, '.'))
+    {
+      sym = findSym (SymbolTab, NULL, var + 1);
+      if (sym && !strcmp (sym->rname, var) && IS_SPEC (sym->etype))
+        return SPEC_SCLS (sym->etype) == S_BIT;
+    }
+
+  /* SFR bits (acc.7, numbers from 0x80), and anything not found */
+  return FALSE;
+}
+
 static const struct ftab
 {
   const char *fname;
@@ -2743,6 +2785,9 @@ ftab[] =                                            // sorted on the number of t
   },
   {
     "notFixedByteReg", notFixedByteReg
+  },
+  {
+    "jbcSafeBit", jbcSafeBit
   },
 };
 
